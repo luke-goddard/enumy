@@ -1,0 +1,10 @@
+/*
+Sudo
+MYSQL
+Postgres
+Apache
+Checks user config
+Shows enabled modules
+Checks for htpasswd files
+View www directories
+*/
