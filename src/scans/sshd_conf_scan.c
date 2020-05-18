@@ -200,7 +200,6 @@ static void permit_root_login_scan(All_Results *ar, Args *cmdline, Vector *v)
         set_id_and_desc(id, new_result);
         set_issue_location(SSHD_CONF_LOC, new_result);
         set_issue_name(name, new_result);
-        set_other_info((char *)vector_get(v, index), new_result);
         add_new_result_medium(new_result, ar, cmdline);
         return;
     }
