@@ -6,18 +6,28 @@
 #include <stdio.h>
 #include <string.h>
 
+#define BUILD_TOOLS 0
+#define SHELL 1
+#define REVERSE_SHELL 2
+#define BIND_SHELL 3
+#define NON_INTERACTIVE_BIND_SHELL 4
+#define FILE_UPLOAD 5
+#define FILE_READ 6
+#define FILE_WRITE 7
+#define LIB_LOAD 8
+#define FILE_DOWNLOAD 9
+
+#define TOTAL_CATEGORY_COUNT 10
+
+#define INFO 0
+#define LOW 1
+#define MED 2
+#define HIGH 3
+
 void lotl_scan(File_Info *fi, All_Results *ar, Args *cmdline);
 
-static void check_buildtools(File_Info *fi, All_Results *ar, Args *cmdline);
-static void check_shell(File_Info *fi, All_Results *ar, Args *cmdline);
-static void check_reverse_shell(File_Info *fi, All_Results *ar, Args *cmdline);
-static void check_bind_shell(File_Info *fi, All_Results *ar, Args *cmdline);
-static void check_non_interactive_bind_shell(File_Info *fi, All_Results *ar, Args *cmdline);
-static void check_file_upload(File_Info *fi, All_Results *ar, Args *cmdline);
-static void check_file_read(File_Info *fi, All_Results *ar, Args *cmdline);
-static void check_file_write(File_Info *fi, All_Results *ar, Args *cmdline);
-static void check_lib_load(File_Info *fi, All_Results *ar, Args *cmdline);
-static void check_file_download(File_Info *fi, All_Results *ar, Args *cmdline);
+static void search_implementation(int tool_type, File_Info *fi, All_Results *ar, Args *cmdline);
+static void report_issue(int id, int lvl, char *issue_message, File_Info *fi, All_Results *ar, Args *cmdline);
 
 static void report_buildtools(File_Info *fi, All_Results *ar, Args *cmdline);
 static void report_shell(File_Info *fi, All_Results *ar, Args *cmdline);
@@ -30,1980 +40,266 @@ static void report_file_write(File_Info *fi, All_Results *ar, Args *cmdline);
 static void report_lib_load(File_Info *fi, All_Results *ar, Args *cmdline);
 static void report_file_download(File_Info *fi, All_Results *ar, Args *cmdline);
 
+/* Build tools should not be found on production environments */
+const char *BuildTools[] = {
+    "as", "addr2line", "ar", "cc", "clang", "c++filt", "dlltool", "gold", "gprof", "ld",
+    "nlmconv", "objcopy", "objdump", "ranlib", "readelf", "size", "strings", "strip"};
+
+/* These programs can be used to break out of a restricted shell */
+const char *ShellTools[] = {
+    "apt-get", "apt", "ash", "awk", "bash", "bundler", "busctl", "busybox", "byebug", "cobc",
+    "cpan", "cpulimit", "crash", "csh", "dash", "dmesg", "docker", "dpkg", "easy_install",
+    "eb", "ed", "emacs", "env", "expect", "facter", "find", "flock", "ftp", "gawk", "gcc",
+    "gdb", "gem", "gimp", "git", "gtester", "iftop", "ionice", "irb", "jjs", "journalctl",
+    "jrunscript", "ksh", "ld.so", "less", "logsave", "ltrace", "lua", "mail", "make", "man",
+    "mawk", "more", "mysql", "nano", "nawk", "nice", "nmap", "node", "nohup", "nroff", "nsenter",
+    "pdb", "perl", "pg", "php", "pic", "pico", "pip", "pry", "puppet", "python", "rake", "rlwrap",
+    "rpm", "rpmquery", "rsync", "ruby", "run-mailcap", "run-parts", "rvim", "scp", "screen",
+    "script", "sed", "service", "setarch", "sftp", "smbclient", "socat", "sqlite3", "ssh",
+    "start-stop-daemon", "stdbuf", "strace", "tar", "taskset", "tclsh", "telnet", "time",
+    "timeout", "tmux", "top", "unshare", "valgrind", "vi", "vim", "watch", "wish", "xargs",
+    "zip", "zsh", "zypper"};
+
+/* These tools can be used to spawn a reverse shell */
+const char *RevShellTools[] = {
+    "bash", "cpan", "easy_install", "gdb", "gimp", "irb", "jjs", "jrunscript", "ksh", "nc",
+    "node", "openssl", "perl", "php", "pip", "python", "ruby", "rvim", "socat", "telnet",
+    "vim", "vi"};
+
+/* These tools can be used to spawn a bind shell */
+const char *BindShellTools[] = {
+    "nc", "node", "socat"};
+
+/* These toools can be used to spawn a non interactive bind shell */
+const char *NonInterShellTools[] = {
+    "awk", "gawk", "lua", "nawk", "nmap", "rvim", "vim"};
+
+/* These tools can be used to upload arbitrary files to the target system */
+const char *FileUploadTools[] = {
+    "bash", "busybox", "cancel", "cpan", "curl", "easy_install", "finger", "ftp", "gdb",
+    "gimp", "irb", "ksh", "lua", "nc", "nmap", "openssl", "php", "pip", "python", "restic",
+    "rlogin", "ruby", "rvim", "scp", "sftp", "smbclient", "socat", "ssh", "tar", "tftp",
+    "vim", "wget", "whoami"};
+
+/* These tools can be used to read arbitary files assuming that it has SUID */
+const char *FileReadTools[] = {
+    "arp", "awk", "base32", "base64", "bash", "busybox", "cat", "cp", "curl", "cut", "date",
+    "dd", "dialog", "diff", "dmesg", "docker", "easy_install", "ed", "emacs", "eqn", "expand",
+    "file", "fmt", "fold", "gawk", "gdb", "genisoimage", "gimp", "grep", "hd", "head",
+    "hexdump", "highlight", "iconv", "ip", "irb", "jjs", "jq", "jrunscript", "ksh", "ksshell",
+    "less", "look", "lua", "lwp-request", "man", "mawk", "more", "mtr", "nano", "nawk", "nl",
+    "nmap", "od", "openssl", "pg", "pico", "pip", "puppet", "python", "readelf", "red",
+    "redcarpet", "ruby", "run-mailcap", "rvim", "sed", "shuf", "soelim", "sort", "sqlite3",
+    "ssh", "strings", "tac", "tail", "tar", "ul", "unexpand", "uniq", "uudecode", "uuencode",
+    "vi", "vim", "xargs", "xxd", "xz", "yelp", "zsoelim"};
+
+/* These tools can be used to write arbitrary files assuming that it has SUID */
+const char *FileWriteTools[] = {
+    "ash", "awk", "bash", "busybox", "cp", "csh", "dash", "dd", "docker", "easy_install",
+    "ed", "emacs", "gawk", "gdb", "gimp", "iconv", "irb", "jjs", "jrunscript", "ksh",
+    "less", "lua", "make", "mawk", "nano", "nawk", "nmap", "openssl", "pico", "pip", "puppet",
+    "python", "red", "rlwrap", "ruby", "run-mailcap", "rvim", "screen", "script", "sed",
+    "shuf", "sqlite3", "tar", "tee", "vi", "vim", "xxd"};
+
+/* These tools can be used to load shared objects assuming that it has SUID */
+const char *LibLoadTools[] = {
+    "bash", "easy_install", "gdb", "gimp", "irb", "mysql", "openssl", "pip", "python",
+    "ruby", "rvim", "vim"};
+
+/* These tools can be used to download arbitrary files from a remote network */
+const char *FileDownloadTools[] = {
+    "bash", "cpan", "curl", "easy_install", "finger", "ftp", "gdb", "gimp", "irb", "jjs",
+    "jrunscript", "ksh", "lua", "lwp-download", "nc", "nmap", "openssl", "php", "pip",
+    "python", "ruby", "rvim", "scp", "sftp", "smbclient", "socat", "ssh", "tar", "tftp",
+    "vim", "wget", "whois"};
+
+/* List of pointers to const char * arrays containg the interesting files that we're searching for */
+void *TotalTools[] = {
+    &BuildTools, &ShellTools, &RevShellTools, &BindShellTools, &NonInterShellTools,
+    &FileUploadTools, &FileReadTools, &FileWriteTools, &LibLoadTools, &FileDownloadTools};
+
+/* List of function pointers that point will report issues, note that these are stored in order of the defined values */
+void (*ReportFuncPtrs[TOTAL_CATEGORY_COUNT])() = {
+    report_buildtools, report_shell, report_reverse_shell, report_bind_shell, report_non_interactive_bind_shell,
+    report_file_upload, report_file_read, report_file_write, report_lib_load, report_file_download};
+
+/**
+ * Entrypoint to the living off the land scan
+ * @param fi This is the current file that is being scaned 
+ * @param ar This is a struct containing all of the results 
+ * @param cmdline This is the run time arguments
+ */
 void lotl_scan(File_Info *fi, All_Results *ar, Args *cmdline)
 {
-    check_buildtools(fi, ar, cmdline);
-    check_shell(fi, ar, cmdline);
-    check_reverse_shell(fi, ar, cmdline);
-    check_bind_shell(fi, ar, cmdline);
-    check_non_interactive_bind_shell(fi, ar, cmdline);
-    check_file_upload(fi, ar, cmdline);
-    check_file_download(fi, ar, cmdline);
-    check_lib_load(fi, ar, cmdline);
-    check_file_read(fi, ar, cmdline);
-    check_file_write(fi, ar, cmdline);
-}
+    // Scans that don't require the current file to be SUID
+    search_implementation(BUILD_TOOLS, fi, ar, cmdline);
+    search_implementation(SHELL, fi, ar, cmdline);
+    search_implementation(REVERSE_SHELL, fi, ar, cmdline);
+    search_implementation(BIND_SHELL, fi, ar, cmdline);
+    search_implementation(NON_INTERACTIVE_BIND_SHELL, fi, ar, cmdline);
+    search_implementation(FILE_UPLOAD, fi, ar, cmdline);
+    search_implementation(FILE_DOWNLOAD, fi, ar, cmdline);
 
-/**
- * Checks to see if the current file name matches a file from the list of known build tools
- * @param fi This is current file that we are inspecting
- * @param ar This is a structure containing all of enumy's findings
- * @param cmdline This is the runtime commandline arguments 
- */
-void check_buildtools(File_Info *fi, All_Results *ar, Args *cmdline)
-{
-    switch (fi->name[0])
-    {
-    case 'a':
-        if (strcmp(fi->name, "as") == 0)
-        {
-            report_buildtools(fi, ar, cmdline);
-            break;
-        }
-        if (strcmp(fi->name, "addr2line") == 0)
-        {
-            report_buildtools(fi, ar, cmdline);
-            break;
-        }
-        if (strcmp(fi->name, "ar") == 0)
-        {
-            report_buildtools(fi, ar, cmdline);
-            break;
-        }
-        break;
-    case 'c':
-        if (strcmp(fi->name, "cc") == 0)
-        {
-            report_buildtools(fi, ar, cmdline);
-            break;
-        }
-        if (strcmp(fi->name, "clang") == 0)
-        {
-            report_buildtools(fi, ar, cmdline);
-            break;
-        }
-        if (strcmp(fi->name, "c++filt") == 0)
-        {
-            report_buildtools(fi, ar, cmdline);
-            break;
-        }
-        break;
-    case 'd':
-        if (strcmp(fi->name, "dlltool") == 0)
-        {
-            report_buildtools(fi, ar, cmdline);
-            break;
-        }
-        break;
-    case 'g':
-        if (strcmp(fi->name, "gold") == 0)
-        {
-            report_buildtools(fi, ar, cmdline);
-            break;
-        }
-        if (strcmp(fi->name, "gprof") == 0)
-        {
-            report_buildtools(fi, ar, cmdline);
-            break;
-        }
-        break;
-    case 'l':
-        if (strcmp(fi->name, "ld") == 0)
-        {
-            report_buildtools(fi, ar, cmdline);
-            break;
-        }
-        break;
-    case 'n':
-        if (strcmp(fi->name, "nlmconv") == 0)
-        {
-            report_buildtools(fi, ar, cmdline);
-            break;
-        }
-        if (strcmp(fi->name, "nm") == 0)
-        {
-            report_buildtools(fi, ar, cmdline);
-            break;
-        }
-        break;
-    case 'o':
-        if (strcmp(fi->name, "objcopy") == 0)
-        {
-            report_buildtools(fi, ar, cmdline);
-            break;
-        }
-        if (strcmp(fi->name, "objdump") == 0)
-        {
-            report_buildtools(fi, ar, cmdline);
-            break;
-        }
-        break;
-    case 'r':
-        if (strcmp(fi->name, "ranlib") == 0)
-        {
-            report_buildtools(fi, ar, cmdline);
-            break;
-        }
-        if (strcmp(fi->name, "readelf") == 0)
-        {
-            report_buildtools(fi, ar, cmdline);
-            break;
-        }
-        break;
-    case 's':
-        if (strcmp(fi->name, "size") == 0)
-        {
-            report_buildtools(fi, ar, cmdline);
-            break;
-        }
-        if (strcmp(fi->name, "strings") == 0)
-        {
-            report_buildtools(fi, ar, cmdline);
-            break;
-        }
-        if (strcmp(fi->name, "strip") == 0)
-        {
-            report_buildtools(fi, ar, cmdline);
-            break;
-        }
-        break;
-    }
-}
-
-/**
- * Checks to see if the current file name matches a file from the list of known breakouts
- * It can be used to break out from restricted environments by spawning an interactive system shell.
- * @param fi This is current file that we are inspecting
- * @param ar This is a structure containing all of enumy's findings
- * @param cmdline This is the runtime commandline arguments 
- */
-void check_shell(File_Info *fi, All_Results *ar, Args *cmdline)
-{
-    switch (fi->name[0])
-    {
-    case 'a':
-        if (strcmp(fi->name, "aria2c") == 0)
-        {
-            report_shell(fi, ar, cmdline);
-            break;
-        }
-        break;
-    case 'c':
-        if (strcmp(fi->name, "crash") == 0)
-        {
-            report_shell(fi, ar, cmdline);
-            break;
-        }
-        if (strcmp(fi->name, "crontab") == 0)
-        {
-            report_shell(fi, ar, cmdline);
-            break;
-        }
-        break;
-    case 'n':
-        if (strcmp(fi->name, "nohup") == 0)
-        {
-            report_shell(fi, ar, cmdline);
-            break;
-        }
-        break;
-    case 'p':
-        if (strcmp(fi->name, "php") == 0)
-        {
-            report_shell(fi, ar, cmdline);
-            break;
-        }
-        if (strcmp(fi->name, "python") == 0)
-        {
-            report_shell(fi, ar, cmdline);
-            break;
-        }
-        break;
-    case 's':
-        if (strcmp(fi->name, "sed") == 0)
-        {
-            report_shell(fi, ar, cmdline);
-            break;
-        }
-        break;
-    case 't':
-        if (strcmp(fi->name, "tcpdump") == 0)
-        {
-            report_shell(fi, ar, cmdline);
-            break;
-        }
-        break;
-    }
-}
-
-/**
- * Checks to see if the current file name matches a file from the list of known breakouts
- * It can send back a reverse shell to a listening attacker to open a remote network access.
- * @param fi This is current file that we are inspecting
- * @param ar This is a structure containing all of enumy's findings
- * @param cmdline This is the runtime commandline arguments 
- */
-void check_reverse_shell(File_Info *fi, All_Results *ar, Args *cmdline)
-{
-    switch (fi->name[0])
-    {
-    case 'a':
-        if (strcmp(fi->name, "awk") == 0)
-        {
-            report_reverse_shell(fi, ar, cmdline);
-            break;
-        }
-        break;
-    case 'b':
-        if (strcmp(fi->name, "bash") == 0)
-        {
-            report_reverse_shell(fi, ar, cmdline);
-            break;
-        }
-        break;
-    case 'c':
-        if (strcmp(fi->name, "cpan") == 0)
-        {
-            report_reverse_shell(fi, ar, cmdline);
-            break;
-        }
-        break;
-    case 'e':
-        if (strcmp(fi->name, "easy_install") == 0)
-        {
-            report_reverse_shell(fi, ar, cmdline);
-            break;
-        }
-        break;
-    case 'n':
-        if (strcmp(fi->name, "nc") == 0)
-        {
-            report_reverse_shell(fi, ar, cmdline);
-            break;
-        }
-        if (strcmp(fi->name, "node") == 0)
-        {
-            report_reverse_shell(fi, ar, cmdline);
-            break;
-        }
-        if (strcmp(fi->name, "netcat") == 0)
-        {
-            report_reverse_shell(fi, ar, cmdline);
-            break;
-        }
-        if (strcmp(fi->name, "nmap") == 0)
-        {
-            report_reverse_shell(fi, ar, cmdline);
-            break;
-        }
-        if (strcmp(fi->name, "nawk") == 0)
-        {
-            report_reverse_shell(fi, ar, cmdline);
-            break;
-        }
-        break;
-    case 'g':
-        if (strcmp(fi->name, "gdb") == 0)
-        {
-            report_reverse_shell(fi, ar, cmdline);
-            break;
-        }
-        if (strcmp(fi->name, "gawk") == 0)
-        {
-            report_reverse_shell(fi, ar, cmdline);
-            break;
-        }
-        if (strcmp(fi->name, "gimp") == 0)
-        {
-            report_reverse_shell(fi, ar, cmdline);
-            break;
-        }
-        break;
-    case 'i':
-        if (strcmp(fi->name, "irb") == 0)
-        {
-            report_reverse_shell(fi, ar, cmdline);
-            break;
-        }
-        break;
-    case 'j':
-        if (strcmp(fi->name, "jjs") == 0)
-        {
-            report_reverse_shell(fi, ar, cmdline);
-            break;
-        }
-        if (strcmp(fi->name, "jrunscript") == 0)
-        {
-            report_reverse_shell(fi, ar, cmdline);
-            break;
-        }
-        break;
-    case 'k':
-        if (strcmp(fi->name, "ksh") == 0)
-        {
-            report_reverse_shell(fi, ar, cmdline);
-            break;
-        }
-        break;
-    case 'o':
-        if (strcmp(fi->name, "openssl") == 0)
-        {
-            report_reverse_shell(fi, ar, cmdline);
-            break;
-        }
-        break;
-    case 'p':
-        if (strcmp(fi->name, "php") == 0)
-        {
-            report_reverse_shell(fi, ar, cmdline);
-            break;
-        }
-        if (strcmp(fi->name, "pip") == 0)
-        {
-            report_reverse_shell(fi, ar, cmdline);
-            break;
-        }
-        if (strcmp(fi->name, "perl") == 0)
-        {
-            report_reverse_shell(fi, ar, cmdline);
-            break;
-        }
-        break;
-    case 'r':
-        if (strcmp(fi->name, "ruby") == 0)
-        {
-            report_reverse_shell(fi, ar, cmdline);
-            break;
-        }
-        if (strcmp(fi->name, "rvim") == 0)
-        {
-            report_reverse_shell(fi, ar, cmdline);
-            break;
-        }
-        break;
-    case 's':
-        if (strcmp(fi->name, "socat") == 0)
-        {
-            report_reverse_shell(fi, ar, cmdline);
-            break;
-        }
-        break;
-    case 't':
-        if (strcmp(fi->name, "telnet") == 0)
-        {
-            report_reverse_shell(fi, ar, cmdline);
-            break;
-        }
-        if (strcmp(fi->name, "tclsh") == 0)
-        {
-            report_reverse_shell(fi, ar, cmdline);
-            break;
-        }
-        break;
-    case 'v':
-        if (strcmp(fi->name, "vim") == 0)
-        {
-            report_reverse_shell(fi, ar, cmdline);
-            break;
-        }
-        if (strcmp(fi->name, "vi") == 0)
-        {
-            report_reverse_shell(fi, ar, cmdline);
-            break;
-        }
-        break;
-    case 'w':
-        if (strcmp(fi->name, "wish") == 0)
-        {
-            report_reverse_shell(fi, ar, cmdline);
-            break;
-        }
-        break;
-    case 'l':
-        if (strcmp(fi->name, "lua") == 0)
-        {
-            report_reverse_shell(fi, ar, cmdline);
-            break;
-        }
-    }
-}
-
-/**
- * Checks to see if the current file name matches a file from the list of known breakouts
- * It can bind a shell to a local port to allow remote network access.
- * @param fi This is current file that we are inspecting
- * @param ar This is a structure containing all of enumy's findings
- * @param cmdline This is the runtime commandline arguments 
- */
-void check_bind_shell(File_Info *fi, All_Results *ar, Args *cmdline)
-{
-    switch (fi->name[0])
-    {
-    case 'n':
-        if (strcmp(fi->name, "nc") == 0)
-        {
-            report_bind_shell(fi, ar, cmdline);
-            break;
-        }
-        if (strcmp(fi->name, "netcat") == 0)
-        {
-            report_bind_shell(fi, ar, cmdline);
-            break;
-        }
-        if (strcmp(fi->name, "node") == 0)
-        {
-            report_bind_shell(fi, ar, cmdline);
-            break;
-        }
-        break;
-    case 's':
-        if (strcmp(fi->name, "socat") == 0)
-        {
-            report_bind_shell(fi, ar, cmdline);
-            break;
-        }
-    }
-}
-
-/**
- * Checks to see if the current file name matches a file from the list of known breakouts
- * It can send back a non-interactive reverse shell to a listening attacker to open a remote network access.
- * @param fi This is current file that we are inspecting
- * @param ar This is a structure containing all of enumy's findings
- * @param cmdline This is the runtime commandline arguments 
- */
-void check_non_interactive_bind_shell(File_Info *fi, All_Results *ar, Args *cmdline)
-{
-    switch (fi->name[0])
-    {
-    case 'a':
-        if (strcmp(fi->name, "awk") == 0)
-        {
-            report_non_interactive_bind_shell(fi, ar, cmdline);
-            break;
-        }
-        break;
-    case 'g':
-        if (strcmp(fi->name, "gawk") == 0)
-        {
-            report_non_interactive_bind_shell(fi, ar, cmdline);
-            break;
-        }
-        break;
-    case 'l':
-        if (strcmp(fi->name, "lua") == 0)
-        {
-            report_non_interactive_bind_shell(fi, ar, cmdline);
-            break;
-        }
-        break;
-    case 'n':
-        if (strcmp(fi->name, "nawk") == 0)
-        {
-            report_non_interactive_bind_shell(fi, ar, cmdline);
-            break;
-        }
-        if (strcmp(fi->name, "nmap") == 0)
-        {
-            report_non_interactive_bind_shell(fi, ar, cmdline);
-            break;
-        }
-        break;
-    case 'r':
-        if (strcmp(fi->name, "rvim") == 0)
-        {
-            report_non_interactive_bind_shell(fi, ar, cmdline);
-            break;
-        }
-        break;
-    case 't':
-        if (strcmp(fi->name, "tclsh") == 0)
-        {
-            report_non_interactive_bind_shell(fi, ar, cmdline);
-            break;
-        }
-        break;
-    case 'v':
-        if (strcmp(fi->name, "vim") == 0)
-        {
-            report_non_interactive_bind_shell(fi, ar, cmdline);
-            break;
-        }
-        break;
-    case 'w':
-        if (strcmp(fi->name, "wish") == 0)
-        {
-            report_non_interactive_bind_shell(fi, ar, cmdline);
-            break;
-        }
-        break;
-    }
-}
-
-/**
- * Checks to see if the current file name matches a file from the list of known breakouts
- * It can exfiltrate files of the networking 
- * @param fi This is current file that we are inspecting
- * @param ar This is a structure containing all of enumy's findings
- * @param cmdline This is the runtime commandline arguments 
- */
-void check_file_upload(File_Info *fi, All_Results *ar, Args *cmdline)
-{
-    switch (fi->name[0])
-    {
-    case 'b':
-        if (strcmp(fi->name, "bash") == 0)
-        {
-            report_file_upload(fi, ar, cmdline);
-            break;
-        }
-        if (strcmp(fi->name, "busybox") == 0)
-        {
-            report_file_upload(fi, ar, cmdline);
-            break;
-        }
-        break;
-    case 'c':
-        if (strcmp(fi->name, "cancel") == 0)
-        {
-            report_file_upload(fi, ar, cmdline);
-            break;
-        }
-        if (strcmp(fi->name, "cpan") == 0)
-        {
-            report_file_upload(fi, ar, cmdline);
-            break;
-        }
-        if (strcmp(fi->name, "curl") == 0)
-        {
-            report_file_upload(fi, ar, cmdline);
-            break;
-        }
-        break;
-    case 'e':
-        if (strcmp(fi->name, "easy_install") == 0)
-        {
-            report_file_upload(fi, ar, cmdline);
-            break;
-        }
-        break;
-    case 'f':
-        if (strcmp(fi->name, "finger") == 0)
-        {
-            report_file_upload(fi, ar, cmdline);
-            break;
-        }
-        if (strcmp(fi->name, "ftp") == 0)
-        {
-            report_file_upload(fi, ar, cmdline);
-            break;
-        }
-        break;
-    case 'g':
-        if (strcmp(fi->name, "gdb") == 0)
-        {
-            report_file_upload(fi, ar, cmdline);
-            break;
-        }
-        if (strcmp(fi->name, "gimp") == 0)
-        {
-            report_file_upload(fi, ar, cmdline);
-            break;
-        }
-        break;
-    case 'i':
-        if (strcmp(fi->name, "irb") == 0)
-        {
-            report_file_upload(fi, ar, cmdline);
-            break;
-        }
-        break;
-    case 'k':
-        if (strcmp(fi->name, "ksh") == 0)
-        {
-            report_file_upload(fi, ar, cmdline);
-            break;
-        }
-        break;
-    case 'l':
-        if (strcmp(fi->name, "lua") == 0)
-        {
-            report_file_upload(fi, ar, cmdline);
-            break;
-        }
-        break;
-    case 'n':
-        if (strcmp(fi->name, "nc") == 0)
-        {
-            report_file_upload(fi, ar, cmdline);
-            break;
-        }
-        if (strcmp(fi->name, "nmap") == 0)
-        {
-            report_file_upload(fi, ar, cmdline);
-            break;
-        }
-        break;
-    case 'o':
-        if (strcmp(fi->name, "openssl") == 0)
-        {
-            report_file_upload(fi, ar, cmdline);
-            break;
-        }
-        break;
-    case 'p':
-        if (strcmp(fi->name, "php") == 0)
-        {
-            report_file_upload(fi, ar, cmdline);
-            break;
-        }
-        if (strcmp(fi->name, "pip") == 0)
-        {
-            report_file_upload(fi, ar, cmdline);
-            break;
-        }
-        if (strcmp(fi->name, "python") == 0)
-        {
-            report_file_upload(fi, ar, cmdline);
-            break;
-        }
-        break;
-    case 'r':
-        if (strcmp(fi->name, "restic") == 0)
-        {
-            report_file_upload(fi, ar, cmdline);
-            break;
-        }
-        if (strcmp(fi->name, "rlogin") == 0)
-        {
-            report_file_upload(fi, ar, cmdline);
-            break;
-        }
-        if (strcmp(fi->name, "ruby") == 0)
-        {
-            report_file_upload(fi, ar, cmdline);
-            break;
-        }
-        if (strcmp(fi->name, "rvim") == 0)
-        {
-            report_file_upload(fi, ar, cmdline);
-            break;
-        }
-        break;
-    case 's':
-        if (strcmp(fi->name, "scp") == 0)
-        {
-            report_file_upload(fi, ar, cmdline);
-            break;
-        }
-        if (strcmp(fi->name, "sftp") == 0)
-        {
-            report_file_upload(fi, ar, cmdline);
-            break;
-        }
-        if (strcmp(fi->name, "smbclient") == 0)
-        {
-            report_file_upload(fi, ar, cmdline);
-            break;
-        }
-        if (strcmp(fi->name, "socat") == 0)
-        {
-            report_file_upload(fi, ar, cmdline);
-            break;
-        }
-        if (strcmp(fi->name, "ssh") == 0)
-        {
-            report_file_upload(fi, ar, cmdline);
-            break;
-        }
-        break;
-    case 't':
-        if (strcmp(fi->name, "tar") == 0)
-        {
-            report_file_upload(fi, ar, cmdline);
-            break;
-        }
-        if (strcmp(fi->name, "tftp") == 0)
-        {
-            report_file_upload(fi, ar, cmdline);
-            break;
-        }
-        break;
-    case 'v':
-        if (strcmp(fi->name, "vim") == 0)
-        {
-            report_file_upload(fi, ar, cmdline);
-            break;
-        }
-        break;
-    case 'w':
-        if (strcmp(fi->name, "wget") == 0)
-        {
-            report_file_upload(fi, ar, cmdline);
-            break;
-        }
-        if (strcmp(fi->name, "whois") == 0)
-        {
-            report_file_upload(fi, ar, cmdline);
-            break;
-        }
-        break;
-    }
-}
-
-/**
- * Checks to see if the current file name matches a file from the list of known breakouts
- * It can download remote files 
- * @param fi This is current file that we are inspecting
- * @param ar This is a structure containing all of enumy's findings
- * @param cmdline This is the runtime commandline arguments 
- */
-void check_file_download(File_Info *fi, All_Results *ar, Args *cmdline)
-{
-    switch (fi->name[0])
-    {
-    case 'b':
-        if (strcmp(fi->name, "bash") == 0)
-        {
-            report_file_download(fi, ar, cmdline);
-            break;
-        }
-        break;
-    case 'c':
-        if (strcmp(fi->name, "cpan") == 0)
-        {
-            report_file_download(fi, ar, cmdline);
-            break;
-        }
-        if (strcmp(fi->name, "curl") == 0)
-        {
-            report_file_download(fi, ar, cmdline);
-            break;
-        }
-        break;
-    case 'e':
-        if (strcmp(fi->name, "easy_install") == 0)
-        {
-            report_file_download(fi, ar, cmdline);
-            break;
-        }
-        break;
-    case 'f':
-        if (strcmp(fi->name, "finger") == 0)
-        {
-            report_file_download(fi, ar, cmdline);
-            break;
-        }
-        if (strcmp(fi->name, "ftp") == 0)
-        {
-            report_file_download(fi, ar, cmdline);
-            break;
-        }
-        break;
-    case 'g':
-        if (strcmp(fi->name, "gdb") == 0)
-        {
-            report_file_download(fi, ar, cmdline);
-            break;
-        }
-        if (strcmp(fi->name, "gimp irb") == 0)
-        {
-            report_file_download(fi, ar, cmdline);
-            break;
-        }
-        break;
-    case 'j':
-        if (strcmp(fi->name, "jjs") == 0)
-        {
-            report_file_download(fi, ar, cmdline);
-            break;
-        }
-        if (strcmp(fi->name, "jrunscript") == 0)
-        {
-            report_file_download(fi, ar, cmdline);
-            break;
-        }
-        break;
-    case 'k':
-        if (strcmp(fi->name, "ksh") == 0)
-        {
-            report_file_download(fi, ar, cmdline);
-            break;
-        }
-        break;
-    case 'l':
-        if (strcmp(fi->name, "lua") == 0)
-        {
-            report_file_download(fi, ar, cmdline);
-            break;
-        }
-        if (strcmp(fi->name, "lwp-download") == 0)
-        {
-            report_file_download(fi, ar, cmdline);
-            break;
-        }
-        break;
-    case 'n':
-        if (strcmp(fi->name, "nc") == 0)
-        {
-            report_file_download(fi, ar, cmdline);
-            break;
-        }
-        if (strcmp(fi->name, "nmap") == 0)
-        {
-            report_file_download(fi, ar, cmdline);
-            break;
-        }
-        break;
-    case 'o':
-        if (strcmp(fi->name, "openssl") == 0)
-        {
-            report_file_download(fi, ar, cmdline);
-            break;
-        }
-        break;
-    case 'p':
-        if (strcmp(fi->name, "php") == 0)
-        {
-            report_file_download(fi, ar, cmdline);
-            break;
-        }
-        if (strcmp(fi->name, "pip") == 0)
-        {
-            report_file_download(fi, ar, cmdline);
-            break;
-        }
-        if (strcmp(fi->name, "python") == 0)
-        {
-            report_file_download(fi, ar, cmdline);
-            break;
-        }
-        break;
-    case 'r':
-        if (strcmp(fi->name, "ruby") == 0)
-        {
-            report_file_download(fi, ar, cmdline);
-            break;
-        }
-        if (strcmp(fi->name, "rvim") == 0)
-        {
-            report_file_download(fi, ar, cmdline);
-            break;
-        }
-        break;
-    case 's':
-        if (strcmp(fi->name, "scp") == 0)
-        {
-            report_file_download(fi, ar, cmdline);
-            break;
-        }
-        if (strcmp(fi->name, "sftp") == 0)
-        {
-            report_file_download(fi, ar, cmdline);
-            break;
-        }
-        if (strcmp(fi->name, "smblient") == 0)
-        {
-            report_file_download(fi, ar, cmdline);
-            break;
-        }
-        if (strcmp(fi->name, "socat") == 0)
-        {
-            report_file_download(fi, ar, cmdline);
-            break;
-        }
-        if (strcmp(fi->name, "ssh") == 0)
-        {
-            report_file_download(fi, ar, cmdline);
-            break;
-        }
-        break;
-    case 't':
-        if (strcmp(fi->name, "tar") == 0)
-        {
-            report_file_download(fi, ar, cmdline);
-            break;
-        }
-        if (strcmp(fi->name, "tftp") == 0)
-        {
-            report_file_download(fi, ar, cmdline);
-            break;
-        }
-        break;
-    case 'v':
-        if (strcmp(fi->name, "vim") == 0)
-        {
-            report_file_download(fi, ar, cmdline);
-            break;
-        }
-        break;
-    case 'w':
-        if (strcmp(fi->name, "wget") == 0)
-        {
-            report_file_download(fi, ar, cmdline);
-            break;
-        }
-        if (strcmp(fi->name, "whois") == 0)
-        {
-            report_file_download(fi, ar, cmdline);
-            break;
-        }
-    }
-}
-
-/**
- * Checks to see if the current file name matches a file from the list of known breakouts
- * It writes data to files, it may be used to do privileged writes or write files outside a restricted file system.
- * @param fi This is current file that we are inspecting
- * @param ar This is a structure containing all of enumy's findings
- * @param cmdline This is the runtime commandline arguments 
- */
-void check_file_write(File_Info *fi, All_Results *ar, Args *cmdline)
-{
     if (!has_suid(fi))
+        return;
+
+    // Scans that do require the current file to be SUID
+    search_implementation(FILE_WRITE, fi, ar, cmdline);
+    search_implementation(FILE_READ, fi, ar, cmdline);
+    search_implementation(LIB_LOAD, fi, ar, cmdline);
+}
+
+/**
+ * Finds the consts char * array realated to the current scan and then reports
+ * the file as an issue if it matches
+ * @param type This is the type of scan that is defined above  
+ * @param fi This is the current file that is being scaned 
+ * @param ar This is a struct containing all of the results 
+ * @param cmdline This is the run time arguments
+ */
+static void search_implementation(int tool_type, File_Info *fi, All_Results *ar, Args *cmdline)
+{
+    int const_array_size;
+
+    // Check that the type exists
+    if (tool_type < 0 || tool_type > TOTAL_CATEGORY_COUNT)
     {
+        DEBUG_PRINT("Recived unknown type %i inside of lotl_scan\n", tool_type);
         return;
     }
-    switch (fi->name[0])
-    {
-    case 'a':
-        if (strcmp(fi->name, "ash") == 0)
-        {
-            report_file_write(fi, ar, cmdline);
-            break;
-        }
-        if (strcmp(fi->name, "awk") == 0)
-        {
-            report_file_write(fi, ar, cmdline);
-            break;
-        }
-        break;
-    case 'b':
-        if (strcmp(fi->name, "bash") == 0)
-        {
-            report_file_write(fi, ar, cmdline);
-            break;
-        }
-        if (strcmp(fi->name, "busybox") == 0)
-        {
-            report_file_write(fi, ar, cmdline);
-            break;
-        }
-        break;
-    case 'c':
-        if (strcmp(fi->name, "cp") == 0)
-        {
-            report_file_write(fi, ar, cmdline);
-            break;
-        }
-        if (strcmp(fi->name, "csh") == 0)
-        {
-            report_file_write(fi, ar, cmdline);
-            break;
-        }
-        break;
-    case 'd':
-        if (strcmp(fi->name, "dash") == 0)
-        {
-            report_file_write(fi, ar, cmdline);
-            break;
-        }
-        if (strcmp(fi->name, "dd") == 0)
-        {
-            report_file_write(fi, ar, cmdline);
-            break;
-        }
-        if (strcmp(fi->name, "docker") == 0)
-        {
-            report_file_write(fi, ar, cmdline);
-            break;
-        }
-        break;
-    case 'e':
-        if (strcmp(fi->name, "easy_install") == 0)
-        {
-            report_file_write(fi, ar, cmdline);
-            break;
-        }
-        if (strcmp(fi->name, "ed") == 0)
-        {
-            report_file_write(fi, ar, cmdline);
-            break;
-        }
-        if (strcmp(fi->name, "emacs") == 0)
-        {
-            report_file_write(fi, ar, cmdline);
-            break;
-        }
-        break;
-    case 'g':
-        if (strcmp(fi->name, "gawks") == 0)
-        {
-            report_file_write(fi, ar, cmdline);
-            break;
-        }
-        if (strcmp(fi->name, "gdb") == 0)
-        {
-            report_file_write(fi, ar, cmdline);
-            break;
-        }
-        if (strcmp(fi->name, "gimp") == 0)
-        {
-            report_file_write(fi, ar, cmdline);
-            break;
-        }
-        break;
-    case 'i':
-        if (strcmp(fi->name, "iconv") == 0)
-        {
-            report_file_write(fi, ar, cmdline);
-            break;
-        }
-        if (strcmp(fi->name, "irb") == 0)
-        {
-            report_file_write(fi, ar, cmdline);
-            break;
-        }
-        break;
-    case 'j':
-        if (strcmp(fi->name, "jjs") == 0)
-        {
-            report_file_write(fi, ar, cmdline);
-            break;
-        }
-        if (strcmp(fi->name, "jrunscript") == 0)
-        {
-            report_file_write(fi, ar, cmdline);
-            break;
-        }
-        break;
-    case 'k':
-        if (strcmp(fi->name, "ksh") == 0)
-        {
-            report_file_write(fi, ar, cmdline);
-            break;
-        }
-        break;
-    case 'l':
-        if (strcmp(fi->name, "less") == 0)
-        {
-            report_file_write(fi, ar, cmdline);
-            break;
-        }
-        if (strcmp(fi->name, "lua") == 0)
-        {
-            report_file_write(fi, ar, cmdline);
-            break;
-        }
-        break;
-    case 'm':
-        if (strcmp(fi->name, "make") == 0)
-        {
-            report_file_write(fi, ar, cmdline);
-            break;
-        }
-        if (strcmp(fi->name, "mawk") == 0)
-        {
-            report_file_write(fi, ar, cmdline);
-            break;
-        }
-        break;
-    case 'n':
-        if (strcmp(fi->name, "nano") == 0)
-        {
-            report_file_write(fi, ar, cmdline);
-            break;
-        }
-        if (strcmp(fi->name, "nawk") == 0)
-        {
-            report_file_write(fi, ar, cmdline);
-            break;
-        }
-        if (strcmp(fi->name, "nmap") == 0)
-        {
-            report_file_write(fi, ar, cmdline);
-            break;
-        }
-        break;
-    case 'o':
-        if (strcmp(fi->name, "openssl") == 0)
-        {
-            report_file_write(fi, ar, cmdline);
-            break;
-        }
-        break;
-    case 'p':
-        if (strcmp(fi->name, "pico") == 0)
-        {
-            report_file_write(fi, ar, cmdline);
-            break;
-        }
-        if (strcmp(fi->name, "pip") == 0)
-        {
-            report_file_write(fi, ar, cmdline);
-            break;
-        }
-        if (strcmp(fi->name, "puppet") == 0)
-        {
-            report_file_write(fi, ar, cmdline);
-            break;
-        }
-        if (strcmp(fi->name, "python") == 0)
-        {
-            report_file_write(fi, ar, cmdline);
-            break;
-        }
-        break;
-    case 'r':
-        if (strcmp(fi->name, "red") == 0)
-        {
-            report_file_write(fi, ar, cmdline);
-            break;
-        }
-        if (strcmp(fi->name, "rlwrap") == 0)
-        {
-            report_file_write(fi, ar, cmdline);
-            break;
-        }
-        if (strcmp(fi->name, "ruby") == 0)
-        {
-            report_file_write(fi, ar, cmdline);
-            break;
-        }
-        if (strcmp(fi->name, "run-mailcap") == 0)
-        {
-            report_file_write(fi, ar, cmdline);
-            break;
-        }
-        if (strcmp(fi->name, "rvim") == 0)
-        {
-            report_file_write(fi, ar, cmdline);
-            break;
-        }
-        break;
-    case 's':
-        if (strcmp(fi->name, "screen") == 0)
-        {
-            report_file_write(fi, ar, cmdline);
-            break;
-        }
-        if (strcmp(fi->name, "script") == 0)
-        {
-            report_file_write(fi, ar, cmdline);
-            break;
-        }
-        if (strcmp(fi->name, "seed") == 0)
-        {
-            report_file_write(fi, ar, cmdline);
-            break;
-        }
-        if (strcmp(fi->name, "shuf") == 0)
-        {
-            report_file_write(fi, ar, cmdline);
-            break;
-        }
-        if (strcmp(fi->name, "sqlite3") == 0)
-        {
-            report_file_write(fi, ar, cmdline);
-            break;
-        }
-        break;
-    case 't':
-        if (strcmp(fi->name, "tar") == 0)
-        {
-            report_file_write(fi, ar, cmdline);
-            break;
-        }
-        if (strcmp(fi->name, "tee") == 0)
-        {
-            report_file_write(fi, ar, cmdline);
-            break;
-        }
-        break;
-    case 'v':
-        if (strcmp(fi->name, "vi") == 0)
-        {
-            report_file_write(fi, ar, cmdline);
-            break;
-        }
-        if (strcmp(fi->name, "vim") == 0)
-        {
-            report_file_write(fi, ar, cmdline);
-            break;
-        }
-        break;
-    case 'x':
-        if (strcmp(fi->name, "xxd") == 0)
-        {
-            report_file_write(fi, ar, cmdline);
-            break;
-        }
-    }
-}
 
-/**
- * Checks to see if the current file name matches a file from the list of known breakouts
- * It reads data from files, it may be used to do privileged reads or disclose files outside a restricted file system.
- * @param fi This is current file that we are inspecting
- * @param ar This is a structure containing all of enumy's findings
- * @param cmdline This is the runtime commandline arguments 
- */
-void check_file_read(File_Info *fi, All_Results *ar, Args *cmdline)
-{
-    if (!has_suid(fi))
-    {
-        return;
-    }
-    switch (fi->name[0])
-    {
-    case 'a':
-        if (strcmp(fi->name, "arp") == 0)
-        {
-            report_file_read(fi, ar, cmdline);
-            break;
-        }
-        if (strcmp(fi->name, "awk") == 0)
-        {
-            report_file_read(fi, ar, cmdline);
-            break;
-        }
-        break;
-    case 'b':
-        if (strcmp(fi->name, "base32") == 0)
-        {
-            report_file_read(fi, ar, cmdline);
-            break;
-        }
-        if (strcmp(fi->name, "base64") == 0)
-        {
-            report_file_read(fi, ar, cmdline);
-            break;
-        }
-        if (strcmp(fi->name, "bash") == 0)
-        {
-            report_file_read(fi, ar, cmdline);
-            break;
-        }
-        if (strcmp(fi->name, "busybox") == 0)
-        {
-            report_file_read(fi, ar, cmdline);
-            break;
-        }
-        break;
-    case 'c':
-        if (strcmp(fi->name, "cat") == 0)
-        {
-            report_file_read(fi, ar, cmdline);
-            break;
-        }
-        if (strcmp(fi->name, "cp") == 0)
-        {
-            report_file_read(fi, ar, cmdline);
-            break;
-        }
-        if (strcmp(fi->name, "curl") == 0)
-        {
-            report_file_read(fi, ar, cmdline);
-            break;
-        }
-        if (strcmp(fi->name, "cut") == 0)
-        {
-            report_file_read(fi, ar, cmdline);
-            break;
-        }
-        break;
-    case 'd':
-        if (strcmp(fi->name, "date") == 0)
-        {
-            report_file_read(fi, ar, cmdline);
-            break;
-        }
-        if (strcmp(fi->name, "dd") == 0)
-        {
-            report_file_read(fi, ar, cmdline);
-            break;
-        }
-        if (strcmp(fi->name, "dialog") == 0)
-        {
-            report_file_read(fi, ar, cmdline);
-            break;
-        }
-        if (strcmp(fi->name, "diff") == 0)
-        {
-            report_file_read(fi, ar, cmdline);
-            break;
-        }
-        if (strcmp(fi->name, "dmesg") == 0)
-        {
-            report_file_read(fi, ar, cmdline);
-            break;
-        }
-        if (strcmp(fi->name, "docker") == 0)
-        {
-            report_file_read(fi, ar, cmdline);
-            break;
-        }
-        break;
-    case 'e':
-        if (strcmp(fi->name, "easy_install") == 0)
-        {
-            report_file_read(fi, ar, cmdline);
-            break;
-        }
-        if (strcmp(fi->name, "ed") == 0)
-        {
-            report_file_read(fi, ar, cmdline);
-            break;
-        }
-        if (strcmp(fi->name, "emacs") == 0)
-        {
-            report_file_read(fi, ar, cmdline);
-            break;
-        }
-        if (strcmp(fi->name, "eqn") == 0)
-        {
-            report_file_read(fi, ar, cmdline);
-            break;
-        }
-        if (strcmp(fi->name, "expand") == 0)
-        {
-            report_file_read(fi, ar, cmdline);
-            break;
-        }
-        break;
-    case 'f':
-        if (strcmp(fi->name, "file") == 0)
-        {
-            report_file_read(fi, ar, cmdline);
-            break;
-        }
-        if (strcmp(fi->name, "fmt") == 0)
-        {
-            report_file_read(fi, ar, cmdline);
-            break;
-        }
-        if (strcmp(fi->name, "fold") == 0)
-        {
-            report_file_read(fi, ar, cmdline);
-            break;
-        }
-        break;
-    case 'g':
-        if (strcmp(fi->name, "gawk") == 0)
-        {
-            report_file_read(fi, ar, cmdline);
-            break;
-        }
-        if (strcmp(fi->name, "gdb") == 0)
-        {
-            report_file_read(fi, ar, cmdline);
-            break;
-        }
-        if (strcmp(fi->name, "genisoimage") == 0)
-        {
-            report_file_read(fi, ar, cmdline);
-            break;
-        }
-        if (strcmp(fi->name, "gimp") == 0)
-        {
-            report_file_read(fi, ar, cmdline);
-            break;
-        }
-        if (strcmp(fi->name, "grep") == 0)
-        {
-            report_file_read(fi, ar, cmdline);
-            break;
-        }
-        break;
-    case 'h':
-        if (strcmp(fi->name, "hd") == 0)
-        {
-            report_file_read(fi, ar, cmdline);
-            break;
-        }
-        if (strcmp(fi->name, "head") == 0)
-        {
-            report_file_read(fi, ar, cmdline);
-            break;
-        }
-        if (strcmp(fi->name, "hexdump") == 0)
-        {
-            report_file_read(fi, ar, cmdline);
-            break;
-        }
-        if (strcmp(fi->name, "highlight") == 0)
-        {
-            report_file_read(fi, ar, cmdline);
-            break;
-        }
-        break;
-    case 'i':
-        if (strcmp(fi->name, "iconv") == 0)
-        {
-            report_file_read(fi, ar, cmdline);
-            break;
-        }
-        if (strcmp(fi->name, "ip") == 0)
-        {
-            report_file_read(fi, ar, cmdline);
-            break;
-        }
-        if (strcmp(fi->name, "irb") == 0)
-        {
-            report_file_read(fi, ar, cmdline);
-            break;
-        }
-        break;
-    case 'j':
-        if (strcmp(fi->name, "jjs") == 0)
-        {
-            report_file_read(fi, ar, cmdline);
-            break;
-        }
-        if (strcmp(fi->name, "jq") == 0)
-        {
-            report_file_read(fi, ar, cmdline);
-            break;
-        }
-        if (strcmp(fi->name, "jrunscript") == 0)
-        {
-            report_file_read(fi, ar, cmdline);
-            break;
-        }
-        break;
-    case 'k':
-        if (strcmp(fi->name, "ksh") == 0)
-        {
-            report_file_read(fi, ar, cmdline);
-            break;
-        }
-        if (strcmp(fi->name, "ksshell") == 0)
-        {
-            report_file_read(fi, ar, cmdline);
-            break;
-        }
-        break;
-    case 'l':
-        if (strcmp(fi->name, "less") == 0)
-        {
-            report_file_read(fi, ar, cmdline);
-            break;
-        }
-        if (strcmp(fi->name, "look") == 0)
-        {
-            report_file_read(fi, ar, cmdline);
-            break;
-        }
-        if (strcmp(fi->name, "lua") == 0)
-        {
-            report_file_read(fi, ar, cmdline);
-            break;
-        }
-        if (strcmp(fi->name, "lwp-request") == 0)
-        {
-            report_file_read(fi, ar, cmdline);
-            break;
-        }
-        break;
-    case 'm':
-        if (strcmp(fi->name, "man") == 0)
-        {
-            report_file_read(fi, ar, cmdline);
-            break;
-        }
-        if (strcmp(fi->name, "mawk") == 0)
-        {
-            report_file_read(fi, ar, cmdline);
-            break;
-        }
-        if (strcmp(fi->name, "more") == 0)
-        {
-            report_file_read(fi, ar, cmdline);
-            break;
-        }
-        if (strcmp(fi->name, "mtr") == 0)
-        {
-            report_file_read(fi, ar, cmdline);
-            break;
-        }
-        break;
-    case 'n':
-        if (strcmp(fi->name, "nano") == 0)
-        {
-            report_file_read(fi, ar, cmdline);
-            break;
-        }
-        if (strcmp(fi->name, "nawk") == 0)
-        {
-            report_file_read(fi, ar, cmdline);
-            break;
-        }
-        if (strcmp(fi->name, "nl") == 0)
-        {
-            report_file_read(fi, ar, cmdline);
-            break;
-        }
-        if (strcmp(fi->name, "nmap") == 0)
-        {
-            report_file_read(fi, ar, cmdline);
-            break;
-        }
-        break;
-    case 'o':
-        if (strcmp(fi->name, "od") == 0)
-        {
-            report_file_read(fi, ar, cmdline);
-            break;
-        }
-        if (strcmp(fi->name, "openssl") == 0)
-        {
-            report_file_read(fi, ar, cmdline);
-            break;
-        }
-        break;
-    case 'p':
-        if (strcmp(fi->name, "pg") == 0)
-        {
-            report_file_read(fi, ar, cmdline);
-            break;
-        }
-        if (strcmp(fi->name, "pico") == 0)
-        {
-            report_file_read(fi, ar, cmdline);
-            break;
-        }
-        if (strcmp(fi->name, "pip") == 0)
-        {
-            report_file_read(fi, ar, cmdline);
-            break;
-        }
-        if (strcmp(fi->name, "puppet") == 0)
-        {
-            report_file_read(fi, ar, cmdline);
-            break;
-        }
-        if (strcmp(fi->name, "python") == 0)
-        {
-            report_file_read(fi, ar, cmdline);
-            break;
-        }
-        if (strcmp(fi->name, "readelf") == 0)
-        {
-            report_file_read(fi, ar, cmdline);
-            break;
-        }
-        break;
-    case 'r':
-        if (strcmp(fi->name, "red") == 0)
-        {
-            report_file_read(fi, ar, cmdline);
-            break;
-        }
-        if (strcmp(fi->name, "redcarpet") == 0)
-        {
-            report_file_read(fi, ar, cmdline);
-            break;
-        }
-        if (strcmp(fi->name, "ruby") == 0)
-        {
-            report_file_read(fi, ar, cmdline);
-            break;
-        }
-        if (strcmp(fi->name, "run-mailcap") == 0)
-        {
-            report_file_read(fi, ar, cmdline);
-            break;
-        }
-        if (strcmp(fi->name, "rvim") == 0)
-        {
-            report_file_read(fi, ar, cmdline);
-            break;
-        }
-        break;
-    case 's':
-        if (strcmp(fi->name, "sed") == 0)
-        {
-            report_file_read(fi, ar, cmdline);
-            break;
-        }
-        if (strcmp(fi->name, "shuf") == 0)
-        {
-            report_file_read(fi, ar, cmdline);
-            break;
-        }
-        if (strcmp(fi->name, "soelim") == 0)
-        {
-            report_file_read(fi, ar, cmdline);
-            break;
-        }
-        if (strcmp(fi->name, "sort") == 0)
-        {
-            report_file_read(fi, ar, cmdline);
-            break;
-        }
-        if (strcmp(fi->name, "sqlite3") == 0)
-        {
-            report_file_read(fi, ar, cmdline);
-            break;
-        }
-        if (strcmp(fi->name, "ssh") == 0)
-        {
-            report_file_read(fi, ar, cmdline);
-            break;
-        }
-        if (strcmp(fi->name, "strings") == 0)
-        {
-            report_file_read(fi, ar, cmdline);
-            break;
-        }
-        break;
-    case 't':
-        if (strcmp(fi->name, "tac") == 0)
-        {
-            report_file_read(fi, ar, cmdline);
-            break;
-        }
-        if (strcmp(fi->name, "tail") == 0)
-        {
-            report_file_read(fi, ar, cmdline);
-            break;
-        }
-        if (strcmp(fi->name, "tar") == 0)
-        {
-            report_file_read(fi, ar, cmdline);
-            break;
-        }
-        break;
-    case 'u':
-        if (strcmp(fi->name, "ul") == 0)
-        {
-            report_file_read(fi, ar, cmdline);
-            break;
-        }
-        if (strcmp(fi->name, "unexpand") == 0)
-        {
-            report_file_read(fi, ar, cmdline);
-            break;
-        }
-        if (strcmp(fi->name, "uniq") == 0)
-        {
-            report_file_read(fi, ar, cmdline);
-            break;
-        }
-        if (strcmp(fi->name, "uudecode") == 0)
-        {
-            report_file_read(fi, ar, cmdline);
-            break;
-        }
-        if (strcmp(fi->name, "uuencode") == 0)
-        {
-            report_file_read(fi, ar, cmdline);
-            break;
-        }
-        break;
-    case 'v':
-        if (strcmp(fi->name, "vi") == 0)
-        {
-            report_file_read(fi, ar, cmdline);
-            break;
-        }
-        if (strcmp(fi->name, "vim") == 0)
-        {
-            report_file_read(fi, ar, cmdline);
-            break;
-        }
-        break;
-    case 'x':
-        if (strcmp(fi->name, "xargs") == 0)
-        {
-            report_file_read(fi, ar, cmdline);
-            break;
-        }
-        if (strcmp(fi->name, "xxd") == 0)
-        {
-            report_file_read(fi, ar, cmdline);
-            break;
-        }
-        break;
-    case 'y':
-        if (strcmp(fi->name, "yelp") == 0)
-        {
-            report_file_read(fi, ar, cmdline);
-            break;
-        }
-        break;
-    case 'z':
-        if (strcmp(fi->name, "zsoelim") == 0)
-        {
-            report_file_read(fi, ar, cmdline);
-            break;
-        }
-        break;
-    }
-}
+    // Set the array to the const char * pointer that is related to the current scan type
+    const char **const_array = TotalTools[tool_type];
 
-/**
- * Checks to see if the current file name matches a file from the list of known breakouts
- * It loads shared libraries that may be used to run code in the binary execution context.
- * @param fi This is current file that we are inspecting
- * @param ar This is a structure containing all of enumy's findings
- * @param cmdline This is the runtime commandline arguments 
- */
-void check_lib_load(File_Info *fi, All_Results *ar, Args *cmdline)
-{
-    if (!has_suid(fi))
+    // Get the size of the array we are going to search
+    // There must be a better way to do this but its late :/
+    switch (tool_type)
     {
-        return;
+    case BUILD_TOOLS:
+        const_array_size = sizeof BuildTools / sizeof(BuildTools[0]);
+        break;
+
+    case SHELL:
+        const_array_size = sizeof ShellTools / sizeof(ShellTools[0]);
+        break;
+
+    case REVERSE_SHELL:
+        const_array_size = sizeof RevShellTools / sizeof(RevShellTools[0]);
+        break;
+
+    case BIND_SHELL:
+        const_array_size = sizeof BindShellTools / sizeof(BindShellTools[0]);
+        break;
+
+    case NON_INTERACTIVE_BIND_SHELL:
+        const_array_size = sizeof NonInterShellTools / sizeof(NonInterShellTools[0]);
+        break;
+
+    case FILE_UPLOAD:
+        const_array_size = sizeof FileUploadTools / sizeof(FileUploadTools[0]);
+        break;
+
+    case FILE_DOWNLOAD:
+        const_array_size = sizeof FileDownloadTools / sizeof(FileDownloadTools[0]);
+        break;
+
+    case FILE_WRITE:
+        const_array_size = sizeof FileWriteTools / sizeof(FileWriteTools[0]);
+        break;
+
+    case FILE_READ:
+        const_array_size = sizeof FileReadTools / sizeof(FileReadTools[0]);
+        break;
+
+    case LIB_LOAD:
+        const_array_size = sizeof LibLoadTools / sizeof(LibLoadTools[0]);
+        break;
     }
-    switch (fi->name[0])
+
+    // Itterate through the files we're searching for, if current file matches it then report it
+    // as an issue
+    for (int i = 0; i < const_array_size; i++)
     {
-    case 'b':
-        if (strcmp(fi->name, "bash") == 0)
-        {
-            report_lib_load(fi, ar, cmdline);
-            break;
-        }
-        break;
-    case 'e':
-        if (strcmp(fi->name, "easy_install") == 0)
-        {
-            report_lib_load(fi, ar, cmdline);
-            break;
-        }
-        break;
-    case 'g':
-        if (strcmp(fi->name, "gdb") == 0)
-        {
-            report_lib_load(fi, ar, cmdline);
-            break;
-        }
-        if (strcmp(fi->name, "gimp") == 0)
-        {
-            report_lib_load(fi, ar, cmdline);
-            break;
-        }
-        break;
-    case 'i':
-        if (strcmp(fi->name, "irb") == 0)
-        {
-            report_lib_load(fi, ar, cmdline);
-            break;
-        }
-        break;
-    case 'm':
-        if (strcmp(fi->name, "mysql") == 0)
-        {
-            report_lib_load(fi, ar, cmdline);
-            break;
-        }
-        break;
-    case 'o':
-        if (strcmp(fi->name, "openssl") == 0)
-        {
-            report_lib_load(fi, ar, cmdline);
-            break;
-        }
-        break;
-    case 'p':
-        if (strcmp(fi->name, "pip") == 0)
-        {
-            report_lib_load(fi, ar, cmdline);
-            break;
-        }
-        if (strcmp(fi->name, "python") == 0)
-        {
-            report_lib_load(fi, ar, cmdline);
-            break;
-        }
-        break;
-    case 'r':
-        if (strcmp(fi->name, "ruby") == 0)
-        {
-            report_lib_load(fi, ar, cmdline);
-            break;
-        }
-        if (strcmp(fi->name, "rvim") == 0)
-        {
-            report_lib_load(fi, ar, cmdline);
-            break;
-        }
-        break;
-    case 'v':
-        if (strcmp(fi->name, "vim") == 0)
-        {
-            report_lib_load(fi, ar, cmdline);
-            break;
-        }
-        break;
+        if ((const_array[i][0] == fi->name[0]) && (strcmp(const_array[i], fi->name) == 0))
+            (*ReportFuncPtrs[tool_type])(fi, ar, cmdline);
     }
 }
 
 void report_buildtools(File_Info *fi, All_Results *ar, Args *cmdline)
 {
-    int id = 255;
-    char *name = "Development tool found";
-
-    if (has_elf_magic_bytes(fi) == 0)
-    {
-        return;
-    }
-
-    Result *new_result = create_new_issue();
-    set_id_and_desc(id, new_result);
-    set_issue_location(fi->location, new_result);
-    set_issue_name(name, new_result);
-    add_new_result_medium(new_result, ar, cmdline);
+    report_issue(255, MED, "Development tool found", fi, ar, cmdline);
 }
 
 void report_shell(File_Info *fi, All_Results *ar, Args *cmdline)
 {
-    int id = 256;
-    char *name = "Executable that can breakout of restricted shell found";
-
-    if (has_elf_magic_bytes(fi) == 0)
-    {
-        return;
-    }
-
-    Result *new_result = create_new_issue();
-    set_id_and_desc(id, new_result);
-    set_issue_location(fi->location, new_result);
-    set_issue_name(name, new_result);
-    add_new_result_low(new_result, ar, cmdline);
+    report_issue(256, LOW, "Executable that can breakout of restricted shells found", fi, ar, cmdline);
 }
 
 void report_reverse_shell(File_Info *fi, All_Results *ar, Args *cmdline)
 {
-    int id = 257;
-    char *name = "Executable capable of spawning reverse shells found";
-
-    if (has_elf_magic_bytes(fi) == 0)
-    {
-        return;
-    }
-
-    Result *new_result = create_new_issue();
-    set_id_and_desc(id, new_result);
-    set_issue_location(fi->location, new_result);
-    set_issue_name(name, new_result);
-    add_new_result_medium(new_result, ar, cmdline);
+    report_issue(257, MED, "Executable capable of spawning reverse shells found", fi, ar, cmdline);
 }
 
 void report_bind_shell(File_Info *fi, All_Results *ar, Args *cmdline)
 {
-    int id = 258;
-    char *name = "Executable capable of spawning bind shells found";
-
-    if (has_elf_magic_bytes(fi) == 0)
-    {
-        return;
-    }
-
-    Result *new_result = create_new_issue();
-    set_id_and_desc(id, new_result);
-    set_issue_location(fi->location, new_result);
-    set_issue_name(name, new_result);
-    add_new_result_medium(new_result, ar, cmdline);
+    report_issue(258, MED, "Executable capable of spawning bind shells found", fi, ar, cmdline);
 }
 
 void report_non_interactive_bind_shell(File_Info *fi, All_Results *ar, Args *cmdline)
 {
-    int id = 259;
-    char *name = "Executable capable of spawning non interactive bind shells found";
-
-    if (has_elf_magic_bytes(fi) == 0)
-    {
-        return;
-    }
-
-    Result *new_result = create_new_issue();
-    set_id_and_desc(id, new_result);
-    set_issue_location(fi->location, new_result);
-    set_issue_name(name, new_result);
-    add_new_result_medium(new_result, ar, cmdline);
+    report_issue(259, MED, "Executable capable of non interactive bind shells found", fi, ar, cmdline);
 }
 
 void report_file_upload(File_Info *fi, All_Results *ar, Args *cmdline)
 {
-    int id = 260;
-    char *name = "Executable capable of exfiltrating files off the network found";
-
-    if (has_elf_magic_bytes(fi) == 0)
-    {
-        return;
-    }
-
-    Result *new_result = create_new_issue();
-    set_id_and_desc(id, new_result);
-    set_issue_location(fi->location, new_result);
-    set_issue_name(name, new_result);
-    add_new_result_low(new_result, ar, cmdline);
+    report_issue(260, LOW, "Executable capable of exfiltrating files off the network found", fi, ar, cmdline);
 }
 
 void report_file_read(File_Info *fi, All_Results *ar, Args *cmdline)
 {
-    int id = 261;
-    char *name = "Executable capable of reading arbitrary files as root";
-
-    if (has_elf_magic_bytes(fi) == 0)
-    {
-        return;
-    }
-
-    Result *new_result = create_new_issue();
-    set_id_and_desc(id, new_result);
-    set_issue_location(fi->location, new_result);
-    set_issue_name(name, new_result);
-    add_new_result_high(new_result, ar, cmdline);
+    report_issue(261, HIGH, "Executable capable of reading arbitrary files as root found", fi, ar, cmdline);
 }
 
 void report_file_write(File_Info *fi, All_Results *ar, Args *cmdline)
 {
-    int id = 262;
-    char *name = "Executable capable of writing arbitrary files as root";
-
-    if (has_elf_magic_bytes(fi) == 0)
-    {
-        return;
-    }
-
-    Result *new_result = create_new_issue();
-    set_id_and_desc(id, new_result);
-    set_issue_location(fi->location, new_result);
-    set_issue_name(name, new_result);
-    add_new_result_high(new_result, ar, cmdline);
+    report_issue(262, HIGH, "Executable capable of writing arbitrary files as root found", fi, ar, cmdline);
 }
 
 void report_lib_load(File_Info *fi, All_Results *ar, Args *cmdline)
 {
-    int id = 263;
-    char *name = "Executable capable of loading shared libaries as root";
-
-    if (has_elf_magic_bytes(fi) == 0)
-    {
-        return;
-    }
-
-    Result *new_result = create_new_issue();
-    set_id_and_desc(id, new_result);
-    set_issue_location(fi->location, new_result);
-    set_issue_name(name, new_result);
-    add_new_result_high(new_result, ar, cmdline);
+    report_issue(263, HIGH, "Executable capable of loading shared libaries as root found", fi, ar, cmdline);
 }
 
 void report_file_download(File_Info *fi, All_Results *ar, Args *cmdline)
 {
-    int id = 264;
-    char *name = "Executable capable of downloading files";
+    report_issue(264, LOW, "Executable capable of downloading found", fi, ar, cmdline);
+}
 
+/**
+ * This function is called by wrapper functions to report an issue based of the functions parameters 
+ * @param id issue id 
+ * @param lvl issue serverity level
+ * @param issue_message issue description to save
+ * @param fi the current file 
+ * @param ar the results structs
+ * @param cmdline runtime arguments
+ */
+static void report_issue(int id, int lvl, char *issue_message, File_Info *fi, All_Results *ar, Args *cmdline)
+{
     if (has_elf_magic_bytes(fi) == 0)
-    {
         return;
-    }
 
     Result *new_result = create_new_issue();
     set_id_and_desc(id, new_result);
     set_issue_location(fi->location, new_result);
-    set_issue_name(name, new_result);
-    add_new_result_low(new_result, ar, cmdline);
+    set_issue_name(issue_message, new_result);
+
+    if (lvl == HIGH)
+        add_new_result_high(new_result, ar, cmdline);
+    if (lvl == MED)
+        add_new_result_medium(new_result, ar, cmdline);
+    if (lvl == LOW)
+        add_new_result_low(new_result, ar, cmdline);
+    if (lvl == INFO)
+        add_new_result_info(new_result, ar, cmdline);
 }

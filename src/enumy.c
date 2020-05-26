@@ -28,13 +28,14 @@
 #define KEY_DEL_ALL_ID 68
 #define KEY_QUIT 113
 
-bool DEBUG = false;
-
 typedef struct UserInputThreadArgs
 {
     Ncurses_Layout *layout;
     All_Results *all_results;
 } UserInputThreadArgs;
+
+bool DEBUG = false;
+bool DEBUG_EXTRA = false;
 
 void sigint_handler(int sig)
 {
@@ -71,7 +72,7 @@ void help()
     puts(" -t <num>     Threads (default 4)");
     puts(" -f           Run full scans");
     puts(" -s           Show missing shared libaries");
-    puts(" -d           Debug mode");
+    puts(" -d <1|2>     Debug mode (1 low, 2 high)");
     puts(" -n           Enabled ncurses");
     puts(" -h           Show help");
     exit(0);
@@ -142,6 +143,13 @@ int main(int argc, char *argv[])
     int userinput_threads = 0;
 
     struct Args *args = (struct Args *)malloc(sizeof(struct Args));
+
+    if (args == NULL)
+    {
+        printf("Failed to allocate memory for arguments\n");
+        exit(1);
+    }
+
     strncpy(args->save_location, "enumy.json", sizeof(args->save_location) - 1);
     args->ignore_scan_dir[0] = '\0';
     args->walk_dir[0] = '/';
@@ -165,7 +173,7 @@ int main(int argc, char *argv[])
 
     signal(SIGINT, sigint_handler);
 
-    while ((opt = getopt(argc, argv, "sdfhno:i:w:t:")) != -1)
+    while ((opt = getopt(argc, argv, "sd:fhno:i:w:t:")) != -1)
     {
         switch (opt)
         {
@@ -207,6 +215,10 @@ int main(int argc, char *argv[])
 
         case 'd':
             DEBUG = true;
+            if (atoi(optarg) == 2)
+            {
+                DEBUG_EXTRA = true;
+            }
             break;
 
         case 's':
@@ -222,13 +234,13 @@ int main(int argc, char *argv[])
 
     if (args->enabled_ncurses == true)
     {
-        char *_;
+        char *retval;
         pthread_t user_input_thread;
         init_ncurses_layout(&nlayout, all_results);
         pthread_create(&user_input_thread, NULL, &handle_user_input, &user_input_thread_args);
         args->enabled_ncurses = true;
         start_scan(&nlayout, all_results, args);
-        pthread_join(user_input_thread, (void **)&_);
+        pthread_join(user_input_thread, (void **)&retval);
         endwin();
         free(args);
         return 0;

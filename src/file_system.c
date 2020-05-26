@@ -45,8 +45,12 @@ void walk_file_system(char *entry_location, All_Results *all_results, Args *cmdl
 
     if (dir == NULL)
     {
+        DEBUG_PRINT("Failed to open directory at location %s\n", entry_location);
+        DEBUG_PRINT("Error -> %s\n", strerror(errno));
         return;
     }
+
+    DEBUG_PRINT_EXTRA("Walking dir at location -> %s\n", entry_location);
 
     while ((entry = readdir(dir)) != NULL)
     {
@@ -54,12 +58,14 @@ void walk_file_system(char *entry_location, All_Results *all_results, Args *cmdl
         {
             if (entry->d_type & DT_REG)
             {
+                DEBUG_PRINT_EXTRA("Found file %s\n", entry->d_name);
                 strncpy(file_location, entry_location, MAXSIZE - 1);
                 strcat(file_location, entry->d_name);
                 add_file_to_thread_pool(file_location, entry->d_name, all_results, cmdline);
             }
-            if (entry->d_type & DT_DIR)
+            else if (entry->d_type & DT_DIR)
             {
+                DEBUG_PRINT_EXTRA("Found folder %s\n", entry->d_name);
                 strncpy(file_location, entry_location, MAXSIZE - 1);
                 strcat(file_location, entry->d_name);
                 if (strcmp(cmdline->ignore_scan_dir, file_location) == 0)
@@ -81,6 +87,10 @@ void walk_file_system(char *entry_location, All_Results *all_results, Args *cmdl
                 }
                 walk_file_system(file_location, all_results, cmdline);
             }
+            else
+            {
+                DEBUG_PRINT_EXTRA("Found unknown file type -> %s, %i\n", entry->d_name, entry->d_type);
+            }
         }
     }
     closedir(dir);
@@ -101,6 +111,8 @@ static void add_file_to_thread_pool(char *file_location, char *file_name, All_Re
     {
         out_of_memory_err();
     }
+
+    DEBUG_PRINT_EXTRA("Scanning file -> %s\n", file_location);
 
     strncpy(args->file_location, file_location, MAXSIZE - 1);
     strncpy(args->file_name, file_name, MAXSIZE - 1);

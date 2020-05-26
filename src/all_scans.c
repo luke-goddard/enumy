@@ -21,15 +21,15 @@
 #include <string.h>
 #include <stdbool.h>
 
-pthread_mutex_t FILES_SCANNED_MUTEX;
-int FILES_SCANNED = 0;
-
 typedef struct Walk_Args
 {
     char *walk_path;
     All_Results *all_results;
     Args *cmdline;
 } Walk_Args;
+
+pthread_mutex_t FilesScannedMutex;
+int FilesScanned = 0;
 
 static void *create_walk_thread(void *args);
 
@@ -65,11 +65,17 @@ void scan_file_for_issues(Thread_Pool_Args *thread_pool_args)
 
     if (stat_buf == NULL)
     {
+        if (new_file != NULL)
+            free(new_file);
+
         free(thread_pool_args);
         out_of_memory_err();
     }
     if (new_file == NULL)
     {
+        if (stat_buf != NULL)
+            free(stat_buf);
+
         free(thread_pool_args);
         out_of_memory_err();
     }
@@ -85,22 +91,13 @@ void scan_file_for_issues(Thread_Pool_Args *thread_pool_args)
     else
     {
         DEBUG_PRINT("lstat failed to get information for -> %s\n", new_file->location);
-        free(stat_buf);
-        free(new_file);
-        free(thread_pool_args);
-        return;
+        goto end;
     }
 
     // Ignore symlinks as following them to special files will break scans
     if (S_ISLNK(stat_buf->st_mode))
-    {
-        free(stat_buf);
-        free(new_file);
-        free(thread_pool_args);
-        return;
-    }
+        goto end;
 
-    // printf("Scanning file -> %s\n", thread_pool_args->file_location);
     findings += suid_bit_scan(new_file, thread_pool_args->all_results, thread_pool_args->cmdline);
     findings += guid_bit_scan(new_file, thread_pool_args->all_results, thread_pool_args->cmdline);
     findings += capabilities_scan(new_file, thread_pool_args->all_results, thread_pool_args->cmdline);
@@ -110,13 +107,14 @@ void scan_file_for_issues(Thread_Pool_Args *thread_pool_args)
 
     lotl_scan(new_file, thread_pool_args->all_results, thread_pool_args->cmdline);
 
+    pthread_mutex_lock(&FilesScannedMutex);
+    FilesScanned++;
+    pthread_mutex_unlock(&FilesScannedMutex);
+
+end:
     free(stat_buf);
     free(new_file);
     free(thread_pool_args);
-
-    pthread_mutex_lock(&FILES_SCANNED_MUTEX);
-    FILES_SCANNED++;
-    pthread_mutex_unlock(&FILES_SCANNED_MUTEX);
 }
 
 /**
@@ -128,7 +126,7 @@ void scan_file_for_issues(Thread_Pool_Args *thread_pool_args)
 void start_scan(Ncurses_Layout *layout, All_Results *all_results, Args *args)
 {
     pthread_t walk_thread;
-    char *_;
+    char *retval;
 
     struct Walk_Args walk_args = {
         .walk_path = args->walk_dir,
@@ -138,11 +136,6 @@ void start_scan(Ncurses_Layout *layout, All_Results *all_results, Args *args)
     args->valid_shared_libs = find_shared_libs();
 
     current_user_scan();
-
-    if (layout->current_category == 1337)
-    {
-        puts("I'm just here to make the compiler warning go away");
-    }
 
     if (!args->enabled_ncurses)
     {
@@ -155,11 +148,12 @@ void start_scan(Ncurses_Layout *layout, All_Results *all_results, Args *args)
     sys_scan(all_results, args);
     sshd_conf_scan(all_results, args);
 
-    pthread_join(walk_thread, (void **)&_);
+    pthread_join(walk_thread, (void **)&retval);
 
     save_as_json(all_results, args);
 
-    printf("Total files scanned -> %i\n", FILES_SCANNED);
+    printf("Total files scanned -> %i\n", FilesScanned);
     free_total_results(all_results);
     free_shared_libs(args->valid_shared_libs);
+    update_bars(all_results, layout);
 }

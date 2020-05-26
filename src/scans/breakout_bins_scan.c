@@ -14,6 +14,7 @@
 
 int break_out_binary_scan(File_Info *fi, All_Results *ar, Args *cmdline);
 static void add_issue(int id, char *name, File_Info *fi, All_Results *ar, Args *cmdline);
+static bool compare_and_add_issue(int id, File_Info *fi, All_Results *ar, Args *cmdline, char *search_str);
 
 /**
  * Should only be called if the file is known to be SUID or GUID or can be run as root e.g $sudo -l 
@@ -24,1177 +25,313 @@ static void add_issue(int id, char *name, File_Info *fi, All_Results *ar, Args *
  */
 int break_out_binary_scan(File_Info *fi, All_Results *ar, Args *cmdline)
 {
-    int id;
     switch (fi->name[0])
     {
     case 'a':
-        if (strcmp(fi->name, "apt-get") == 0)
-        {
-            id = 49;
-            add_issue(id, "apt-get", fi, ar, cmdline);
+        if (
+            compare_and_add_issue(49, fi, ar, cmdline, "apt-get") ||
+            compare_and_add_issue(50, fi, ar, cmdline, "apt") ||
+            compare_and_add_issue(51, fi, ar, cmdline, "aria2c") ||
+            compare_and_add_issue(52, fi, ar, cmdline, "arp") ||
+            compare_and_add_issue(53, fi, ar, cmdline, "ash") ||
+            compare_and_add_issue(54, fi, ar, cmdline, "awk"))
             return 1;
-        }
-        else if (strcmp(fi->name, "apt") == 0)
-        {
-            id = 50;
-            add_issue(id, "apt", fi, ar, cmdline);
-            return 1;
-        }
-        else if (strcmp(fi->name, "aria2c") == 0)
-        {
-            id = 51;
-            add_issue(id, "aria2c", fi, ar, cmdline);
-            return 1;
-        }
-        else if (strcmp(fi->name, "arp") == 0)
-        {
-            id = 52;
-            add_issue(id, "arp", fi, ar, cmdline);
-            return 1;
-        }
-        else if (strcmp(fi->name, "ash") == 0)
-        {
-            id = 53;
-            add_issue(id, "ash", fi, ar, cmdline);
-            return 1;
-        }
-        else if (strcmp(fi->name, "awk") == 0)
-        {
-            id = 54;
-            add_issue(id, "awk", fi, ar, cmdline);
-            return 1;
-        }
-        break;
+        return 0;
     case 'b':
-        if (strcmp(fi->name, "base32") == 0)
-        {
-            id = 55;
-            add_issue(id, "base32", fi, ar, cmdline);
+        if (
+            compare_and_add_issue(55, fi, ar, cmdline, "base32") ||
+            compare_and_add_issue(56, fi, ar, cmdline, "base64") ||
+            compare_and_add_issue(57, fi, ar, cmdline, "bash") ||
+            compare_and_add_issue(58, fi, ar, cmdline, "bpftrace") ||
+            compare_and_add_issue(59, fi, ar, cmdline, "bundler") ||
+            compare_and_add_issue(60, fi, ar, cmdline, "busctl") ||
+            compare_and_add_issue(61, fi, ar, cmdline, "busybox") ||
+            compare_and_add_issue(62, fi, ar, cmdline, "byebug"))
             return 1;
-        }
-        else if (strcmp(fi->name, "base64") == 0)
-        {
-            id = 56;
-            add_issue(id, "base64", fi, ar, cmdline);
-            return 1;
-        }
-        else if (strcmp(fi->name, "bash") == 0)
-        {
-            id = 57;
-            add_issue(id, "bash", fi, ar, cmdline);
-            return 1;
-        }
-        else if (strcmp(fi->name, "bpftrace") == 0)
-        {
-            id = 58;
-            add_issue(id, "bpftrace", fi, ar, cmdline);
-            return 1;
-        }
-        else if (strcmp(fi->name, "bundler") == 0)
-        {
-            id = 59;
-            add_issue(id, "bundler", fi, ar, cmdline);
-            return 1;
-        }
-        else if (strcmp(fi->name, "busctl") == 0)
-        {
-            id = 60;
-            add_issue(id, "busctl", fi, ar, cmdline);
-            return 1;
-        }
-        else if (strcmp(fi->name, "busybox") == 0)
-        {
-            id = 61;
-            add_issue(id, "busybox", fi, ar, cmdline);
-            return 1;
-        }
-        else if (strcmp(fi->name, "byebug") == 0)
-        {
-            id = 62;
-            add_issue(id, "byebug", fi, ar, cmdline);
-            return 1;
-        }
-        break;
+        return 0;
     case 'c':
-        if (strcmp(fi->name, "cancel") == 0)
-        {
-            id = 63;
-            add_issue(id, "cancel", fi, ar, cmdline);
+        if (
+            compare_and_add_issue(63, fi, ar, cmdline, "cancel") ||
+            compare_and_add_issue(64, fi, ar, cmdline, "cat") ||
+            compare_and_add_issue(65, fi, ar, cmdline, "chmod") ||
+            compare_and_add_issue(66, fi, ar, cmdline, "chown") ||
+            compare_and_add_issue(67, fi, ar, cmdline, "chroot") ||
+            compare_and_add_issue(68, fi, ar, cmdline, "cobc") ||
+            compare_and_add_issue(69, fi, ar, cmdline, "cp") ||
+            compare_and_add_issue(70, fi, ar, cmdline, "cpan") ||
+            compare_and_add_issue(71, fi, ar, cmdline, "cpulimit") ||
+            compare_and_add_issue(72, fi, ar, cmdline, "crash") ||
+            compare_and_add_issue(73, fi, ar, cmdline, "crontab") ||
+            compare_and_add_issue(74, fi, ar, cmdline, "csh") ||
+            compare_and_add_issue(75, fi, ar, cmdline, "curl") ||
+            compare_and_add_issue(76, fi, ar, cmdline, "cut"))
             return 1;
-        }
-        else if (strcmp(fi->name, "cat") == 0)
-        {
-            id = 64;
-            add_issue(id, "cat", fi, ar, cmdline);
-            return 1;
-        }
-        else if (strcmp(fi->name, "chmod") == 0)
-        {
-            id = 65;
-            add_issue(id, "chmod", fi, ar, cmdline);
-            return 1;
-        }
-        else if (strcmp(fi->name, "chown") == 0)
-        {
-            id = 66;
-            add_issue(id, "chown", fi, ar, cmdline);
-            return 1;
-        }
-        else if (strcmp(fi->name, "chroot") == 0)
-        {
-            id = 67;
-            add_issue(id, "chroot", fi, ar, cmdline);
-            return 1;
-        }
-        else if (strcmp(fi->name, "cobc") == 0)
-        {
-            id = 68;
-            add_issue(id, "cobc", fi, ar, cmdline);
-            return 1;
-        }
-        else if (strcmp(fi->name, "cp") == 0)
-        {
-            id = 69;
-            add_issue(id, "cp", fi, ar, cmdline);
-            return 1;
-        }
-        else if (strcmp(fi->name, "cpan") == 0)
-        {
-            id = 70;
-            add_issue(id, "cpan", fi, ar, cmdline);
-            return 1;
-        }
-        else if (strcmp(fi->name, "cpulimit") == 0)
-        {
-            id = 71;
-            add_issue(id, "cpulimit", fi, ar, cmdline);
-            return 1;
-        }
-        else if (strcmp(fi->name, "crash") == 0)
-        {
-            id = 72;
-            add_issue(id, "crash", fi, ar, cmdline);
-            return 1;
-        }
-        else if (strcmp(fi->name, "crontab") == -0)
-        {
-            id = 73;
-            add_issue(id, "crontab", fi, ar, cmdline);
-            return 1;
-        }
-        else if (strcmp(fi->name, "csh") == 0)
-        {
-            id = 74;
-            add_issue(id, "csh", fi, ar, cmdline);
-            return 1;
-        }
-        else if (strcmp(fi->name, "curl") == 0)
-        {
-            id = 75;
-            add_issue(id, "curl", fi, ar, cmdline);
-            return 1;
-        }
-        else if (strcmp(fi->name, "cut") == 0)
-        {
-            id = 76;
-            add_issue(id, "cut", fi, ar, cmdline);
-            return 1;
-        }
-        break;
+        return 0;
     case 'd':
-        if (strcmp(fi->name, "dash") == 0)
-        {
-            id = 77;
-            add_issue(id, "dash", fi, ar, cmdline);
+        if (
+            compare_and_add_issue(77, fi, ar, cmdline, "dash") ||
+            compare_and_add_issue(78, fi, ar, cmdline, "date") ||
+            compare_and_add_issue(79, fi, ar, cmdline, "dmidecode") ||
+            compare_and_add_issue(80, fi, ar, cmdline, "dd") ||
+            compare_and_add_issue(81, fi, ar, cmdline, "dialog") ||
+            compare_and_add_issue(82, fi, ar, cmdline, "diff") ||
+            compare_and_add_issue(83, fi, ar, cmdline, "dmesg") ||
+            compare_and_add_issue(84, fi, ar, cmdline, "dmsetup") ||
+            compare_and_add_issue(85, fi, ar, cmdline, "dnf") ||
+            compare_and_add_issue(86, fi, ar, cmdline, "docker"))
             return 1;
-        }
-        else if (strcmp(fi->name, "date") == 0)
-        {
-            id = 78;
-            add_issue(id, "date", fi, ar, cmdline);
-            return 1;
-        }
-        else if (strcmp(fi->name, "dmidecode") == 0)
-        {
-            id = 234;
-            add_issue(id, "dmidecode", fi, ar, cmdline);
-            return 1;
-        }
-        else if (strcmp(fi->name, "dd") == 0)
-        {
-            id = 79;
-            add_issue(id, "dd", fi, ar, cmdline);
-            return 1;
-        }
-        else if (strcmp(fi->name, "dialog") == 0)
-        {
-            id = 80;
-            add_issue(id, "dialog", fi, ar, cmdline);
-            return 1;
-        }
-        else if (strcmp(fi->name, "diff") == 0)
-        {
-            id = 81;
-            add_issue(id, "diff", fi, ar, cmdline);
-            return 1;
-        }
-        else if (strcmp(fi->name, "dmesg") == 0)
-        {
-            id = 82;
-            add_issue(id, "dmesg", fi, ar, cmdline);
-            return 1;
-        }
-        else if (strcmp(fi->name, "dmsetup") == 0)
-        {
-            id = 83;
-            add_issue(id, "dmsetup", fi, ar, cmdline);
-            return 1;
-        }
-        else if (strcmp(fi->name, "dnf") == 0)
-        {
-            id = 84;
-            add_issue(id, "dnf", fi, ar, cmdline);
-            return 1;
-        }
-        else if (strcmp(fi->name, "docker") == 0)
-        {
-            id = 85;
-            add_issue(id, "docker", fi, ar, cmdline);
-            return 1;
-        }
-        else if (strcmp(fi->name, "dpkg") == 0)
-        {
-            id = 86;
-            add_issue(id, "dpkg", fi, ar, cmdline);
-            return 1;
-        }
-        break;
+        return 0;
     case 'e':
-        if (strcmp(fi->name, "easy_install") == 0)
-        {
-            id = 87;
-            add_issue(id, "easy_install", fi, ar, cmdline);
+        if (
+            compare_and_add_issue(87, fi, ar, cmdline, "easy_install") ||
+            compare_and_add_issue(88, fi, ar, cmdline, "eb") ||
+            compare_and_add_issue(89, fi, ar, cmdline, "ed") ||
+            compare_and_add_issue(90, fi, ar, cmdline, "emacs") ||
+            compare_and_add_issue(91, fi, ar, cmdline, "env") ||
+            compare_and_add_issue(92, fi, ar, cmdline, "eqn") ||
+            compare_and_add_issue(93, fi, ar, cmdline, "expand") ||
+            compare_and_add_issue(94, fi, ar, cmdline, "expect"))
             return 1;
-        }
-        else if (strcmp(fi->name, "eb") == 0)
-        {
-            id = 88;
-            add_issue(id, "eb", fi, ar, cmdline);
-            return 1;
-        }
-        else if (strcmp(fi->name, "ed") == 0)
-        {
-            id = 89;
-            add_issue(id, "ed", fi, ar, cmdline);
-            return 1;
-        }
-        else if (strcmp(fi->name, "emacs") == 0)
-        {
-            id = 90;
-            add_issue(id, "emacs", fi, ar, cmdline);
-            return 1;
-        }
-        else if (strcmp(fi->name, "env") == 0)
-        {
-            id = 91;
-            add_issue(id, "env", fi, ar, cmdline);
-            return 1;
-        }
-        else if (strcmp(fi->name, "eqn") == 0)
-        {
-            id = 92;
-            add_issue(id, "eqn", fi, ar, cmdline);
-            return 1;
-        }
-        else if (strcmp(fi->name, "expand") == 0)
-        {
-            id = 93;
-            add_issue(id, "expand", fi, ar, cmdline);
-            return 1;
-        }
-        else if (strcmp(fi->name, "expect") == 0)
-        {
-            id = 94;
-            add_issue(id, "expect", fi, ar, cmdline);
-            return 1;
-        }
-        break;
+        return 0;
     case 'f':
-        if (strcmp(fi->name, "facter") == 0)
-        {
-            id = 95;
-            add_issue(id, "facter", fi, ar, cmdline);
+        if (
+            compare_and_add_issue(95, fi, ar, cmdline, "facter") ||
+            compare_and_add_issue(96, fi, ar, cmdline, "file") ||
+            compare_and_add_issue(97, fi, ar, cmdline, "find") ||
+            compare_and_add_issue(98, fi, ar, cmdline, "finger") ||
+            compare_and_add_issue(99, fi, ar, cmdline, "flock") ||
+            compare_and_add_issue(100, fi, ar, cmdline, "fmt") ||
+            compare_and_add_issue(101, fi, ar, cmdline, "fold") ||
+            compare_and_add_issue(102, fi, ar, cmdline, "ftp"))
             return 1;
-        }
-        else if (strcmp(fi->name, "file") == 0)
-        {
-            id = 96;
-            add_issue(id, "file", fi, ar, cmdline);
-            return 1;
-        }
-        else if (strcmp(fi->name, "find") == 0)
-        {
-            id = 97;
-            add_issue(id, "find", fi, ar, cmdline);
-            return 1;
-        }
-        else if (strcmp(fi->name, "finger") == 0)
-        {
-            id = 98;
-            add_issue(id, "finger", fi, ar, cmdline);
-            return 1;
-        }
-        else if (strcmp(fi->name, "flock") == 0)
-        {
-            id = 99;
-            add_issue(id, "flock", fi, ar, cmdline);
-            return 1;
-        }
-        else if (strcmp(fi->name, "fmt") == 0)
-        {
-            id = 100;
-            add_issue(id, "fmt", fi, ar, cmdline);
-            return 1;
-        }
-        else if (strcmp(fi->name, "fold") == 0)
-        {
-            id = 101;
-            add_issue(id, "fold", fi, ar, cmdline);
-            return 1;
-        }
-        else if (strcmp(fi->name, "ftp") == 0)
-        {
-            id = 102;
-            add_issue(id, "ftp", fi, ar, cmdline);
-            return 1;
-        }
-        break;
+        return 0;
     case 'g':
-        if (strcmp(fi->name, "gawk") == 0)
-        {
-            id = 103;
-            add_issue(id, "gawk", fi, ar, cmdline);
+        if (
+            compare_and_add_issue(103, fi, ar, cmdline, "gawk") ||
+            compare_and_add_issue(104, fi, ar, cmdline, "gcc") ||
+            compare_and_add_issue(105, fi, ar, cmdline, "gdb") ||
+            compare_and_add_issue(106, fi, ar, cmdline, "gem") ||
+            compare_and_add_issue(107, fi, ar, cmdline, "genisoimage") ||
+            compare_and_add_issue(108, fi, ar, cmdline, "gimp") ||
+            compare_and_add_issue(109, fi, ar, cmdline, "git") ||
+            compare_and_add_issue(110, fi, ar, cmdline, "grep") ||
+            compare_and_add_issue(111, fi, ar, cmdline, "gtester"))
             return 1;
-        }
-        else if (strcmp(fi->name, "gcc") == 0)
-        {
-            id = 104;
-            add_issue(id, "gcc", fi, ar, cmdline);
-            return 1;
-        }
-        else if (strcmp(fi->name, "gdb") == 0)
-        {
-            id = 105;
-            add_issue(id, "gdb", fi, ar, cmdline);
-            return 1;
-        }
-        else if (strcmp(fi->name, "gem") == 0)
-        {
-            id = 106;
-            add_issue(id, "gem", fi, ar, cmdline);
-            return 1;
-        }
-        else if (strcmp(fi->name, "genisoimage") == 0)
-        {
-            id = 107;
-            add_issue(id, "genisoimage", fi, ar, cmdline);
-            return 1;
-        }
-        else if (strcmp(fi->name, "gimp") == 0)
-        {
-            id = 108;
-            add_issue(id, "gimp", fi, ar, cmdline);
-            return 1;
-        }
-        else if (strcmp(fi->name, "git") == 0)
-        {
-            id = 109;
-            add_issue(id, "git", fi, ar, cmdline);
-            return 1;
-        }
-        else if (strcmp(fi->name, "grep") == 0)
-        {
-            id = 110;
-            add_issue(id, "grep", fi, ar, cmdline);
-            return 1;
-        }
-        else if (strcmp(fi->name, "gtester") == 0)
-        {
-            id = 111;
-            add_issue(id, "gtester", fi, ar, cmdline);
-            return 1;
-        }
-        break;
+        return 0;
     case 'h':
-        if (strcmp(fi->name, "hd") == 0)
-        {
-            id = 112;
-            add_issue(id, "hd", fi, ar, cmdline);
+        if (
+            compare_and_add_issue(112, fi, ar, cmdline, "hd") ||
+            compare_and_add_issue(113, fi, ar, cmdline, "head") ||
+            compare_and_add_issue(114, fi, ar, cmdline, "hexdump") ||
+            compare_and_add_issue(115, fi, ar, cmdline, "highlight"))
             return 1;
-        }
-        else if (strcmp(fi->name, "head") == 0)
-        {
-            id = 113;
-            add_issue(id, "head", fi, ar, cmdline);
-            return 1;
-        }
-        else if (strcmp(fi->name, "hexdump") == 0)
-        {
-            id = 114;
-            add_issue(id, "hexdump", fi, ar, cmdline);
-            return 1;
-        }
-        else if (strcmp(fi->name, "highlight") == 0)
-        {
-            id = 115;
-            add_issue(id, "highlight", fi, ar, cmdline);
-            return 1;
-        }
-        break;
+        return 0;
     case 'i':
-        if (strcmp(fi->name, "iconv") == 0)
-        {
-            id = 116;
-            add_issue(id, "iconv", fi, ar, cmdline);
+        if (
+            compare_and_add_issue(116, fi, ar, cmdline, "iconv") ||
+            compare_and_add_issue(117, fi, ar, cmdline, "iftop") ||
+            compare_and_add_issue(118, fi, ar, cmdline, "ionice") ||
+            compare_and_add_issue(119, fi, ar, cmdline, "ip") ||
+            compare_and_add_issue(120, fi, ar, cmdline, "irb"))
             return 1;
-        }
-        else if (strcmp(fi->name, "iftop") == 0)
-        {
-            id = 117;
-            add_issue(id, "iftop", fi, ar, cmdline);
-            return 1;
-        }
-        else if (strcmp(fi->name, "ionice") == 0)
-        {
-            id = 118;
-            add_issue(id, "ionice", fi, ar, cmdline);
-            return 1;
-        }
-        else if (strcmp(fi->name, "ip") == 0)
-        {
-            id = 119;
-            add_issue(id, "ip", fi, ar, cmdline);
-            return 1;
-        }
-        else if (strcmp(fi->name, "irb") == 0)
-        {
-            id = 120;
-            add_issue(id, "irb", fi, ar, cmdline);
-            return 1;
-        }
-        break;
+        return 0;
     case 'j':
-        if (strcmp(fi->name, "jjs") == 0)
-        {
-            id = 121;
-            add_issue(id, "jjs", fi, ar, cmdline);
+        if (
+            compare_and_add_issue(121, fi, ar, cmdline, "jjs") ||
+            compare_and_add_issue(122, fi, ar, cmdline, "journalctl") ||
+            compare_and_add_issue(123, fi, ar, cmdline, "jq") ||
+            compare_and_add_issue(124, fi, ar, cmdline, "jrunscript"))
             return 1;
-        }
-        else if (strcmp(fi->name, "journalctl") == 0)
-        {
-            id = 122;
-            add_issue(id, "journalctl", fi, ar, cmdline);
-            return 1;
-        }
-        else if (strcmp(fi->name, "jq") == 0)
-        {
-            id = 123;
-            add_issue(id, "jq", fi, ar, cmdline);
-            return 1;
-        }
-        else if (strcmp(fi->name, "jrunscript") == 0)
-        {
-            id = 124;
-            add_issue(id, "jrunscript", fi, ar, cmdline);
-            return 1;
-        }
-        break;
+        return 0;
     case 'k':
-        if (strcmp(fi->name, "ksh") == 0)
-        {
-            id = 126;
-            add_issue(id, "ksh", fi, ar, cmdline);
+        if (
+            compare_and_add_issue(125, fi, ar, cmdline, "ksh") ||
+            compare_and_add_issue(126, fi, ar, cmdline, "kshell"))
             return 1;
-        }
-        else if (strcmp(fi->name, "kshksshell") == 0)
-        {
-            id = 125;
-            add_issue(id, "kshksshell", fi, ar, cmdline);
-            return 1;
-        }
-        break;
+        return 0;
     case 'l':
-        if (strcmp(fi->name, "ld.so") == 0)
-        {
-            id = 127;
-            add_issue(id, "ld", fi, ar, cmdline);
+        if (
+            compare_and_add_issue(127, fi, ar, cmdline, "ld.so") ||
+            compare_and_add_issue(128, fi, ar, cmdline, "ldconfig") ||
+            compare_and_add_issue(129, fi, ar, cmdline, "less") ||
+            compare_and_add_issue(130, fi, ar, cmdline, "logsave") ||
+            compare_and_add_issue(131, fi, ar, cmdline, "look") ||
+            compare_and_add_issue(132, fi, ar, cmdline, "ltrace") ||
+            compare_and_add_issue(133, fi, ar, cmdline, "lua") ||
+            compare_and_add_issue(134, fi, ar, cmdline, "lwp-download") ||
+            compare_and_add_issue(135, fi, ar, cmdline, "lwp-request"))
             return 1;
-        }
-        else if (strcmp(fi->name, "ldconfig") == 0)
-        {
-            id = 128;
-            add_issue(id, "ldconfig", fi, ar, cmdline);
-            return 1;
-        }
-        else if (strcmp(fi->name, "less") == 0)
-        {
-            id = 129;
-            add_issue(id, "less", fi, ar, cmdline);
-            return 1;
-        }
-        else if (strcmp(fi->name, "logsave") == 0)
-        {
-            id = 130;
-            add_issue(id, "logsave", fi, ar, cmdline);
-            return 1;
-        }
-        else if (strcmp(fi->name, "look") == 0)
-        {
-            id = 131;
-            add_issue(id, "look", fi, ar, cmdline);
-            return 1;
-        }
-        else if (strcmp(fi->name, "ltrace") == 0)
-        {
-            id = 132;
-            add_issue(id, "ltrace", fi, ar, cmdline);
-            return 1;
-        }
-        else if (strcmp(fi->name, "lua") == 0)
-        {
-            id = 133;
-            add_issue(id, "lua", fi, ar, cmdline);
-            return 1;
-        }
-        else if (strcmp(fi->name, "lwp-download") == 0)
-        {
-            id = 134;
-            add_issue(id, "lwp-download", fi, ar, cmdline);
-            return 1;
-        }
-        else if (strcmp(fi->name, "lwp-request") == 0)
-        {
-            id = 135;
-            add_issue(id, "lwp-request", fi, ar, cmdline);
-            return 1;
-        }
-        break;
+        return 0;
     case 'm':
-        if (strcmp(fi->name, "mail") == 0)
-        {
-            id = 136;
-            add_issue(id, "mail", fi, ar, cmdline);
+        if (
+            compare_and_add_issue(136, fi, ar, cmdline, "mail") ||
+            compare_and_add_issue(137, fi, ar, cmdline, "make") ||
+            compare_and_add_issue(138, fi, ar, cmdline, "man") ||
+            compare_and_add_issue(139, fi, ar, cmdline, "mawk") ||
+            compare_and_add_issue(140, fi, ar, cmdline, "more") ||
+            compare_and_add_issue(141, fi, ar, cmdline, "mount") ||
+            compare_and_add_issue(142, fi, ar, cmdline, "mtr") ||
+            compare_and_add_issue(143, fi, ar, cmdline, "mv") ||
+            compare_and_add_issue(144, fi, ar, cmdline, "mysql"))
             return 1;
-        }
-        else if (strcmp(fi->name, "make") == 0)
-        {
-            id = 137;
-            add_issue(id, "make", fi, ar, cmdline);
-            return 1;
-        }
-        else if (strcmp(fi->name, "man") == 0)
-        {
-            id = 138;
-            add_issue(id, "man", fi, ar, cmdline);
-            return 1;
-        }
-        else if (strcmp(fi->name, "mawk") == 0)
-        {
-            id = 139;
-            add_issue(id, "mawk", fi, ar, cmdline);
-            return 1;
-        }
-        else if (strcmp(fi->name, "more") == 0)
-        {
-            id = 140;
-            add_issue(id, "more", fi, ar, cmdline);
-            return 1;
-        }
-        else if (strcmp(fi->name, "mount") == 0)
-        {
-            id = 141;
-            add_issue(id, "mount", fi, ar, cmdline);
-            return 1;
-        }
-        else if (strcmp(fi->name, "mtr") == 0)
-        {
-            id = 142;
-            add_issue(id, "mtr", fi, ar, cmdline);
-            return 1;
-        }
-        else if (strcmp(fi->name, "mv") == 0)
-        {
-            id = 143;
-            add_issue(id, "mv", fi, ar, cmdline);
-            return 1;
-        }
-        else if (strcmp(fi->name, "mysql") == 0)
-        {
-            id = 144;
-            add_issue(id, "mysql", fi, ar, cmdline);
-            return 1;
-        }
-        break;
+        return 0;
     case 'n':
-        if (strcmp(fi->name, "nano") == 0)
-        {
-            id = 145;
-            add_issue(id, "nano", fi, ar, cmdline);
+        if (
+            compare_and_add_issue(145, fi, ar, cmdline, "nano") ||
+            compare_and_add_issue(146, fi, ar, cmdline, "nawk") ||
+            compare_and_add_issue(147, fi, ar, cmdline, "nc") ||
+            compare_and_add_issue(148, fi, ar, cmdline, "nice") ||
+            compare_and_add_issue(149, fi, ar, cmdline, "nl") ||
+            compare_and_add_issue(150, fi, ar, cmdline, "nmap") ||
+            compare_and_add_issue(151, fi, ar, cmdline, "node") ||
+            compare_and_add_issue(152, fi, ar, cmdline, "nohup") ||
+            compare_and_add_issue(153, fi, ar, cmdline, "nroff") ||
+            compare_and_add_issue(154, fi, ar, cmdline, "nsenter"))
             return 1;
-        }
-        else if (strcmp(fi->name, "nawk") == 0)
-        {
-            id = 146;
-            add_issue(id, "nawk", fi, ar, cmdline);
-            return 1;
-        }
-        else if (strcmp(fi->name, "nc") == 0)
-        {
-            id = 147;
-            add_issue(id, "nc", fi, ar, cmdline);
-            return 1;
-        }
-        else if (strcmp(fi->name, "nice") == 0)
-        {
-            id = 148;
-            add_issue(id, "nice", fi, ar, cmdline);
-            return 1;
-        }
-        else if (strcmp(fi->name, "nl") == 0)
-        {
-            id = 149;
-            add_issue(id, "nl", fi, ar, cmdline);
-            return 1;
-        }
-        else if (strcmp(fi->name, "nmap") == 0)
-        {
-            id = 150;
-            add_issue(id, "nmap", fi, ar, cmdline);
-            return 1;
-        }
-        else if (strcmp(fi->name, "node") == 0)
-        {
-            id = 151;
-            add_issue(id, "node", fi, ar, cmdline);
-            return 1;
-        }
-        else if (strcmp(fi->name, "nohup") == 0)
-        {
-            id = 152;
-            add_issue(id, "nohup", fi, ar, cmdline);
-            return 1;
-        }
-        else if (strcmp(fi->name, "nroff") == 0)
-        {
-            id = 153;
-            add_issue(id, "nroff", fi, ar, cmdline);
-            return 1;
-        }
-        else if (strcmp(fi->name, "nsenter") == 0)
-        {
-            id = 154;
-            add_issue(id, "nsenter", fi, ar, cmdline);
-            return 1;
-        }
-        break;
+        return 0;
     case 'o':
-        if (strcmp(fi->name, "od") == 0)
-        {
-            id = 155;
-            add_issue(id, "od", fi, ar, cmdline);
+        if (
+            compare_and_add_issue(155, fi, ar, cmdline, "od") ||
+            compare_and_add_issue(156, fi, ar, cmdline, "openssl"))
             return 1;
-        }
-        else if (strcmp(fi->name, "openssl") == 0)
-        {
-            id = 156;
-            add_issue(id, "openssl", fi, ar, cmdline);
-            return 1;
-        }
-        break;
+        return 0;
     case 'p':
-        if (strcmp(fi->name, "pdb") == 0)
-        {
-            id = 157;
-            add_issue(id, "pdb", fi, ar, cmdline);
+        if (
+            compare_and_add_issue(157, fi, ar, cmdline, "pdb") ||
+            compare_and_add_issue(158, fi, ar, cmdline, "perl") ||
+            compare_and_add_issue(159, fi, ar, cmdline, "pg") ||
+            compare_and_add_issue(160, fi, ar, cmdline, "php") ||
+            compare_and_add_issue(161, fi, ar, cmdline, "pic") ||
+            compare_and_add_issue(162, fi, ar, cmdline, "pico") ||
+            compare_and_add_issue(163, fi, ar, cmdline, "pip") ||
+            compare_and_add_issue(164, fi, ar, cmdline, "pry") ||
+            compare_and_add_issue(165, fi, ar, cmdline, "puppet") ||
+            compare_and_add_issue(166, fi, ar, cmdline, "python"))
             return 1;
-        }
-        else if (strcmp(fi->name, "perl") == 0)
-        {
-            id = 158;
-            add_issue(id, "perl", fi, ar, cmdline);
-            return 1;
-        }
-        else if (strcmp(fi->name, "pg") == 0)
-        {
-            id = 159;
-            add_issue(id, "pg", fi, ar, cmdline);
-            return 1;
-        }
-        else if (strcmp(fi->name, "php") == 0)
-        {
-            id = 160;
-            add_issue(id, "php", fi, ar, cmdline);
-            return 1;
-        }
-        else if (strcmp(fi->name, "pic") == 0)
-        {
-            id = 161;
-            add_issue(id, "pic", fi, ar, cmdline);
-            return 1;
-        }
-        else if (strcmp(fi->name, "pico") == 0)
-        {
-            id = 162;
-            add_issue(id, "pico", fi, ar, cmdline);
-            return 1;
-        }
-        else if (strcmp(fi->name, "pip") == 0)
-        {
-            id = 163;
-            add_issue(id, "pip", fi, ar, cmdline);
-            return 1;
-        }
-        else if (strcmp(fi->name, "pry") == 0)
-        {
-            id = 164;
-            add_issue(id, "pry", fi, ar, cmdline);
-            return 1;
-        }
-        else if (strcmp(fi->name, "puppet") == 0)
-        {
-            id = 165;
-            add_issue(id, "puppet", fi, ar, cmdline);
-            return 1;
-        }
-        else if (strcmp(fi->name, "python") == 0)
-        {
-            id = 166;
-            add_issue(id, "python", fi, ar, cmdline);
-            return 1;
-        }
-        break;
+        return 0;
     case 'r':
-        if (strcmp(fi->name, "rake") == 0)
-        {
-            id = 167;
-            add_issue(id, "rake", fi, ar, cmdline);
+        if (
+            compare_and_add_issue(167, fi, ar, cmdline, "rake") ||
+            compare_and_add_issue(168, fi, ar, cmdline, "readelf") ||
+            compare_and_add_issue(169, fi, ar, cmdline, "red") ||
+            compare_and_add_issue(170, fi, ar, cmdline, "redcarpet") ||
+            compare_and_add_issue(171, fi, ar, cmdline, "restic") ||
+            compare_and_add_issue(172, fi, ar, cmdline, "rlogin") ||
+            compare_and_add_issue(173, fi, ar, cmdline, "rlwrap") ||
+            compare_and_add_issue(174, fi, ar, cmdline, "rpm") ||
+            compare_and_add_issue(175, fi, ar, cmdline, "rpmquery") ||
+            compare_and_add_issue(176, fi, ar, cmdline, "rsync") ||
+            compare_and_add_issue(177, fi, ar, cmdline, "ruby") ||
+            compare_and_add_issue(178, fi, ar, cmdline, "run-mailcap") ||
+            compare_and_add_issue(179, fi, ar, cmdline, "run-parts") ||
+            compare_and_add_issue(180, fi, ar, cmdline, "rvim"))
             return 1;
-        }
-        else if (strcmp(fi->name, "readelf") == 0)
-        {
-            id = 168;
-            add_issue(id, "readelf", fi, ar, cmdline);
-            return 1;
-        }
-        else if (strcmp(fi->name, "red") == 0)
-        {
-            id = 169;
-            add_issue(id, "red", fi, ar, cmdline);
-            return 1;
-        }
-        else if (strcmp(fi->name, "redcarpet") == 0)
-        {
-            id = 170;
-            add_issue(id, "redcarpet", fi, ar, cmdline);
-            return 1;
-        }
-        else if (strcmp(fi->name, "restic") == 0)
-        {
-            id = 171;
-            add_issue(id, "restic", fi, ar, cmdline);
-            return 1;
-        }
-        else if (strcmp(fi->name, "rlogin") == 0)
-        {
-            id = 172;
-            add_issue(id, "rlogin", fi, ar, cmdline);
-            return 1;
-        }
-        else if (strcmp(fi->name, "rlwrap") == 0)
-        {
-            id = 173;
-            add_issue(id, "rlwrap", fi, ar, cmdline);
-            return 1;
-        }
-        else if (strcmp(fi->name, "rpm") == 0)
-        {
-            id = 174;
-            add_issue(id, "rpm", fi, ar, cmdline);
-            return 1;
-        }
-        else if (strcmp(fi->name, "rpmquery") == 0)
-        {
-            id = 175;
-            add_issue(id, "rpmquery", fi, ar, cmdline);
-            return 1;
-        }
-        else if (strcmp(fi->name, "rsync") == 0)
-        {
-            id = 176;
-            add_issue(id, "rsync", fi, ar, cmdline);
-            return 1;
-        }
-        else if (strcmp(fi->name, "ruby") == 0)
-        {
-            id = 177;
-            add_issue(id, "ruby", fi, ar, cmdline);
-            return 1;
-        }
-        else if (strcmp(fi->name, "run-mailcap") == 0)
-        {
-            id = 178;
-            add_issue(id, "run", fi, ar, cmdline);
-            return 1;
-        }
-        else if (strcmp(fi->name, "run-parts") == 0)
-        {
-            id = 179;
-            add_issue(id, "run-parts", fi, ar, cmdline);
-            return 1;
-        }
-        else if (strcmp(fi->name, "rvim") == 0)
-        {
-            id = 180;
-            add_issue(id, "rvim", fi, ar, cmdline);
-            return 1;
-        }
-        break;
+        return 0;
     case 's':
-        if (strcmp(fi->name, "scp") == 0)
-        {
-            id = 181;
-            add_issue(id, "scp", fi, ar, cmdline);
+        if (
+            compare_and_add_issue(181, fi, ar, cmdline, "scp") ||
+            compare_and_add_issue(182, fi, ar, cmdline, "screen") ||
+            compare_and_add_issue(183, fi, ar, cmdline, "script") ||
+            compare_and_add_issue(184, fi, ar, cmdline, "sed") ||
+            compare_and_add_issue(185, fi, ar, cmdline, "service") ||
+            compare_and_add_issue(186, fi, ar, cmdline, "setarch") ||
+            compare_and_add_issue(187, fi, ar, cmdline, "sftp") ||
+            compare_and_add_issue(188, fi, ar, cmdline, "shuf") ||
+            compare_and_add_issue(189, fi, ar, cmdline, "smbclient") ||
+            compare_and_add_issue(190, fi, ar, cmdline, "socat") ||
+            compare_and_add_issue(191, fi, ar, cmdline, "soelim") ||
+            compare_and_add_issue(192, fi, ar, cmdline, "sort") ||
+            compare_and_add_issue(193, fi, ar, cmdline, "sqlite4") ||
+            compare_and_add_issue(194, fi, ar, cmdline, "ssh") ||
+            compare_and_add_issue(195, fi, ar, cmdline, "start-stop-daemon") ||
+            compare_and_add_issue(196, fi, ar, cmdline, "stdbuff") ||
+            compare_and_add_issue(197, fi, ar, cmdline, "strace") ||
+            compare_and_add_issue(198, fi, ar, cmdline, "strings") ||
+            compare_and_add_issue(199, fi, ar, cmdline, "systemctl"))
             return 1;
-        }
-        else if (strcmp(fi->name, "screen") == 0)
-        {
-            id = 182;
-            add_issue(id, "screen", fi, ar, cmdline);
-            return 1;
-        }
-        else if (strcmp(fi->name, "script") == 0)
-        {
-            id = 183;
-            add_issue(id, "script", fi, ar, cmdline);
-            return 1;
-        }
-        else if (strcmp(fi->name, "sed") == 0)
-        {
-            id = 184;
-            add_issue(id, "sed", fi, ar, cmdline);
-            return 1;
-        }
-        else if (strcmp(fi->name, "service") == 0)
-        {
-            id = 185;
-            add_issue(id, "service", fi, ar, cmdline);
-            return 1;
-        }
-        else if (strcmp(fi->name, "setarch") == 0)
-        {
-            id = 186;
-            add_issue(id, "setarch", fi, ar, cmdline);
-            return 1;
-        }
-        else if (strcmp(fi->name, "sftp") == 0)
-        {
-            id = 187;
-            add_issue(id, "sftp", fi, ar, cmdline);
-            return 1;
-        }
-        else if (strcmp(fi->name, "shuf") == 0)
-        {
-            id = 188;
-            add_issue(id, "shuf", fi, ar, cmdline);
-            return 1;
-        }
-        else if (strcmp(fi->name, "smbclient") == 0)
-        {
-            id = 189;
-            add_issue(id, "smbclient", fi, ar, cmdline);
-            return 1;
-        }
-        else if (strcmp(fi->name, "socat") == 0)
-        {
-            id = 190;
-            add_issue(id, "socat", fi, ar, cmdline);
-            return 1;
-        }
-        else if (strcmp(fi->name, "soelim") == 0)
-        {
-            id = 191;
-            add_issue(id, "soelim", fi, ar, cmdline);
-            return 1;
-        }
-        else if (strcmp(fi->name, "sort") == 0)
-        {
-            id = 192;
-            add_issue(id, "sort", fi, ar, cmdline);
-            return 1;
-        }
-        else if (strcmp(fi->name, "sqlite4") == 0)
-        {
-            id = 193;
-            add_issue(id, "sqlite4", fi, ar, cmdline);
-            return 1;
-        }
-        else if (strcmp(fi->name, "ssh") == 0)
-        {
-            id = 194;
-            add_issue(id, "ssh", fi, ar, cmdline);
-            return 1;
-        }
-        else if (strcmp(fi->name, "start-stop-daemon") == 0)
-        {
-            id = 195;
-            add_issue(id, "start-stop-daemon", fi, ar, cmdline);
-            return 1;
-        }
-        else if (strcmp(fi->name, "stdbuf") == 0)
-        {
-            id = 196;
-            add_issue(id, "stdbuf", fi, ar, cmdline);
-            return 1;
-        }
-        else if (strcmp(fi->name, "strace") == 0)
-        {
-            id = 197;
-            add_issue(id, "strace", fi, ar, cmdline);
-            return 1;
-        }
-        else if (strcmp(fi->name, "strings") == 0)
-        {
-            id = 198;
-            add_issue(id, "strings", fi, ar, cmdline);
-            return 1;
-        }
-        else if (strcmp(fi->name, "systemctl") == 0)
-        {
-            id = 199;
-            add_issue(id, "systemctl", fi, ar, cmdline);
-            return 1;
-        }
-        break;
+        return 0;
     case 't':
-        if (strcmp(fi->name, "tac") == 0)
-        {
-            id = 200;
-            add_issue(id, "tac", fi, ar, cmdline);
+        if (
+            compare_and_add_issue(200, fi, ar, cmdline, "tac") ||
+            compare_and_add_issue(201, fi, ar, cmdline, "tail") ||
+            compare_and_add_issue(202, fi, ar, cmdline, "tar") ||
+            compare_and_add_issue(203, fi, ar, cmdline, "taskset") ||
+            compare_and_add_issue(204, fi, ar, cmdline, "tclsh") ||
+            compare_and_add_issue(205, fi, ar, cmdline, "tcpdump") ||
+            compare_and_add_issue(206, fi, ar, cmdline, "tee") ||
+            compare_and_add_issue(207, fi, ar, cmdline, "telnet") ||
+            compare_and_add_issue(208, fi, ar, cmdline, "tftp") ||
+            compare_and_add_issue(209, fi, ar, cmdline, "time") ||
+            compare_and_add_issue(210, fi, ar, cmdline, "timeout") ||
+            compare_and_add_issue(211, fi, ar, cmdline, "tmux") ||
+            compare_and_add_issue(212, fi, ar, cmdline, "top"))
             return 1;
-        }
-        else if (strcmp(fi->name, "tail") == 0)
-        {
-            id = 201;
-            add_issue(id, "tail", fi, ar, cmdline);
-            return 1;
-        }
-        else if (strcmp(fi->name, "tar") == 0)
-        {
-            id = 202;
-            add_issue(id, "tar", fi, ar, cmdline);
-            return 1;
-        }
-        else if (strcmp(fi->name, "taskset") == 0)
-        {
-            id = 203;
-            add_issue(id, "taskset", fi, ar, cmdline);
-            return 1;
-        }
-        else if (strcmp(fi->name, "tclsh") == 0)
-        {
-            id = 204;
-            add_issue(id, "tclsh", fi, ar, cmdline);
-            return 1;
-        }
-        else if (strcmp(fi->name, "tcpdump") == 0)
-        {
-            id = 205;
-            add_issue(id, "tcpdump", fi, ar, cmdline);
-            return 1;
-        }
-        else if (strcmp(fi->name, "tee") == 0)
-        {
-            id = 206;
-            add_issue(id, "tee", fi, ar, cmdline);
-            return 1;
-        }
-        else if (strcmp(fi->name, "telnet") == 0)
-        {
-            id = 207;
-            add_issue(id, "telnet", fi, ar, cmdline);
-            return 1;
-        }
-        else if (strcmp(fi->name, "tftp") == 0)
-        {
-            id = 208;
-            add_issue(id, "tftp", fi, ar, cmdline);
-            return 1;
-        }
-        else if (strcmp(fi->name, "time") == 0)
-        {
-            id = 209;
-            add_issue(id, "time", fi, ar, cmdline);
-            return 1;
-        }
-        else if (strcmp(fi->name, "timeout") == 0)
-        {
-            id = 210;
-            add_issue(id, "timeout", fi, ar, cmdline);
-            return 1;
-        }
-        else if (strcmp(fi->name, "tmux") == 0)
-        {
-            id = 211;
-            add_issue(id, "tmux", fi, ar, cmdline);
-            return 1;
-        }
-        else if (strcmp(fi->name, "top") == 0)
-        {
-            id = 212;
-            add_issue(id, "top", fi, ar, cmdline);
-            return 1;
-        }
-        break;
+        return 0;
     case 'u':
-        if (strcmp(fi->name, "ul") == 0)
-        {
-            id = 213;
-            add_issue(id, "ul", fi, ar, cmdline);
+        if (
+            compare_and_add_issue(213, fi, ar, cmdline, "ul") ||
+            compare_and_add_issue(214, fi, ar, cmdline, "unexpand") ||
+            compare_and_add_issue(215, fi, ar, cmdline, "uniq") ||
+            compare_and_add_issue(216, fi, ar, cmdline, "unshare") ||
+            compare_and_add_issue(217, fi, ar, cmdline, "uudecode") ||
+            compare_and_add_issue(218, fi, ar, cmdline, "uuencode"))
             return 1;
-        }
-        else if (strcmp(fi->name, "unexpand") == 0)
-        {
-            id = 214;
-            add_issue(id, "unexpand", fi, ar, cmdline);
-            return 1;
-        }
-        else if (strcmp(fi->name, "uniq") == 0)
-        {
-            id = 215;
-            add_issue(id, "uniq", fi, ar, cmdline);
-            return 1;
-        }
-        else if (strcmp(fi->name, "unshare") == 0)
-        {
-            id = 216;
-            add_issue(id, "unshare", fi, ar, cmdline);
-            return 1;
-        }
-        else if (strcmp(fi->name, "uudecode") == 0)
-        {
-            id = 217;
-            add_issue(id, "uudecode", fi, ar, cmdline);
-            return 1;
-        }
-        else if (strcmp(fi->name, "uuencode") == 0)
-        {
-            id = 218;
-            add_issue(id, "uuencode", fi, ar, cmdline);
-            return 1;
-        }
-        break;
+        return 0;
     case 'v':
-        if (strcmp(fi->name, "valgrind") == 0)
-        {
-            id = 219;
-            add_issue(id, "valgrind", fi, ar, cmdline);
+        if (
+            compare_and_add_issue(219, fi, ar, cmdline, "valgrind") ||
+            compare_and_add_issue(220, fi, ar, cmdline, "vi") ||
+            compare_and_add_issue(221, fi, ar, cmdline, "vim"))
             return 1;
-        }
-        else if (strcmp(fi->name, "vi") == 0)
-        {
-            id = 220;
-            add_issue(id, "vi", fi, ar, cmdline);
-            return 1;
-        }
-        else if (strcmp(fi->name, "vim") == 0)
-        {
-            id = 221;
-            add_issue(id, "vim", fi, ar, cmdline);
-            return 1;
-        }
-        break;
+        return 0;
     case 'w':
-        if (strcmp(fi->name, "watch") == 0)
-        {
-            id = 222;
-            add_issue(id, "watch", fi, ar, cmdline);
+        if (
+            compare_and_add_issue(222, fi, ar, cmdline, "watch") ||
+            compare_and_add_issue(223, fi, ar, cmdline, "wget") ||
+            compare_and_add_issue(224, fi, ar, cmdline, "whois") ||
+            compare_and_add_issue(225, fi, ar, cmdline, "wish"))
             return 1;
-        }
-        else if (strcmp(fi->name, "wget") == 0)
-        {
-            id = 223;
-            add_issue(id, "wget", fi, ar, cmdline);
-            return 1;
-        }
-        else if (strcmp(fi->name, "whois") == 0)
-        {
-            id = 224;
-            add_issue(id, "whois", fi, ar, cmdline);
-            return 1;
-        }
-        else if (strcmp(fi->name, "wish") == 0)
-        {
-            id = 225;
-            add_issue(id, "wish", fi, ar, cmdline);
-            return 1;
-        }
-        break;
+        return 0;
     case 'x':
-        if (strcmp(fi->name, "xarg") == 0)
-        {
-            id = 226;
-            add_issue(id, "xarg", fi, ar, cmdline);
+        if (
+            compare_and_add_issue(226, fi, ar, cmdline, "xarg") ||
+            compare_and_add_issue(227, fi, ar, cmdline, "xxd"))
             return 1;
-        }
-        else if (strcmp(fi->name, "xxd") == 0)
-        {
-            id = 227;
-            add_issue(id, "xxd", fi, ar, cmdline);
-            return 1;
-        }
-        break;
+        return 0;
     case 'y':
-        if (strcmp(fi->name, "yelp") == 0)
-        {
-            id = 228;
-            add_issue(id, "yelp", fi, ar, cmdline);
+        if (
+            compare_and_add_issue(228, fi, ar, cmdline, "yelp") ||
+            compare_and_add_issue(229, fi, ar, cmdline, "yum"))
             return 1;
-        }
-        else if (strcmp(fi->name, "yum") == 0)
-        {
-            id = 229;
-            add_issue(id, "yum", fi, ar, cmdline);
-            return 1;
-        }
-        break;
+        return 0;
     case 'z':
-        if (strcmp(fi->name, "zip") == 0)
-        {
-            id = 230;
-            add_issue(id, "zip", fi, ar, cmdline);
+        if (
+            compare_and_add_issue(230, fi, ar, cmdline, "zip") ||
+            compare_and_add_issue(231, fi, ar, cmdline, "zsh") ||
+            compare_and_add_issue(232, fi, ar, cmdline, "zsoelim") ||
+            compare_and_add_issue(233, fi, ar, cmdline, "zypper"))
             return 1;
-        }
-        if (strcmp(fi->name, "zsh") == 0)
-        {
-            id = 231;
-            add_issue(id, "zsh", fi, ar, cmdline);
-            return 1;
-        }
-        if (strcmp(fi->name, "zsoelim") == 0)
-        {
-            id = 232;
-            add_issue(id, "zsoelim", fi, ar, cmdline);
-            return 1;
-        }
-        if (strcmp(fi->name, "zypper") == 0)
-        {
-            id = 233;
-            add_issue(id, "zypper", fi, ar, cmdline);
-            return 1;
-        }
-        break;
+        return 0;
     }
     return 0;
+}
+
+/**
+ * @param id issues new id 
+ * @param name name of the breakout binary
+ * @param fi file information for the file 
+ * @param ar struct containing all the results that enumy has found on the system
+ * @param cmdline a struct continaing the runtime arguments for enumy 
+ * @param search_str the string to compare the current file's name against
+ */
+static bool compare_and_add_issue(int id, File_Info *fi, All_Results *ar, Args *cmdline, char *search_str)
+{
+    if (strcmp(fi->name, search_str) == 0)
+    {
+        add_issue(id, fi->name, fi, ar, cmdline);
+        return true;
+    }
+    return false;
 }
 
 /**
