@@ -114,9 +114,7 @@ struct thpool_ *thpool_init(int num_threads)
     threads_keepalive = 1;
 
     if (num_threads < 0)
-    {
         num_threads = 0;
-    }
 
     /* Make new thread pool */
     thpool_ *thpool_p;
@@ -195,9 +193,7 @@ void thpool_wait(thpool_ *thpool_p)
 {
     pthread_mutex_lock(&thpool_p->thcount_lock);
     while (thpool_p->jobqueue.len || thpool_p->num_threads_working)
-    {
         pthread_cond_wait(&thpool_p->threads_all_idle, &thpool_p->thcount_lock);
-    }
     pthread_mutex_unlock(&thpool_p->thcount_lock);
 }
 
@@ -249,9 +245,7 @@ void thpool_pause(thpool_ *thpool_p)
 {
     int n;
     for (n = 0; n < thpool_p->num_threads_alive; n++)
-    {
         pthread_kill(thpool_p->threads[n]->pthread, SIGUSR1);
-    }
 }
 
 /* Resume all threads in threadpool */
@@ -302,9 +296,7 @@ static void thread_hold(int sig_id)
     (void)sig_id;
     threads_on_hold = 1;
     while (threads_on_hold)
-    {
         sleep(1);
-    }
 }
 
 /* What each thread is doing
@@ -340,9 +332,7 @@ static void *thread_do(struct thread *thread_p)
     act.sa_flags = 0;
     act.sa_handler = thread_hold;
     if (sigaction(SIGUSR1, &act, NULL) == -1)
-    {
         err("thread_do(): cannot handle SIGUSR1");
-    }
 
     /* Mark thread as alive (initialized) */
     pthread_mutex_lock(&thpool_p->thcount_lock);
@@ -376,9 +366,7 @@ static void *thread_do(struct thread *thread_p)
             pthread_mutex_lock(&thpool_p->thcount_lock);
             thpool_p->num_threads_working--;
             if (!thpool_p->num_threads_working)
-            {
                 pthread_cond_signal(&thpool_p->threads_all_idle);
-            }
             pthread_mutex_unlock(&thpool_p->thcount_lock);
         }
     }
@@ -406,9 +394,7 @@ static int jobqueue_init(jobqueue *jobqueue_p)
 
     jobqueue_p->has_jobs = (struct bsem *)malloc(sizeof(struct bsem));
     if (jobqueue_p->has_jobs == NULL)
-    {
         return -1;
-    }
 
     pthread_mutex_init(&(jobqueue_p->rwmutex), NULL);
     bsem_init(jobqueue_p->has_jobs, 0);
@@ -421,9 +407,7 @@ static void jobqueue_clear(jobqueue *jobqueue_p)
 {
 
     while (jobqueue_p->len)
-    {
         free(jobqueue_pull(jobqueue_p));
-    }
 
     jobqueue_p->front = NULL;
     jobqueue_p->rear = NULL;
@@ -544,9 +528,7 @@ static void bsem_wait(bsem *bsem_p)
 {
     pthread_mutex_lock(&bsem_p->mutex);
     while (bsem_p->v != 1)
-    {
         pthread_cond_wait(&bsem_p->cond, &bsem_p->mutex);
-    }
     bsem_p->v = 0;
     pthread_mutex_unlock(&bsem_p->mutex);
 }
