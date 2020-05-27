@@ -36,6 +36,8 @@ int core_dump_scan(File_Info *fi, All_Results *ar, Args *cmdline);
 
 static void add_issue_wrapper(int id, File_Info *fi, int severity, All_Results *ar, Args *cmdline, char *issue_name);
 
+/* ============================ FUNCTIONS ============================== */
+
 /**
  * Given a file, this will test to see if the file is an elf and it's
  * parsable. Then we test to see if the file is a core dump file 
@@ -50,24 +52,27 @@ int core_dump_scan(File_Info *fi, All_Results *ar, Args *cmdline)
 {
     int findings = 0;
 
+    /* Check to see if core is in the filename */
     if (strcasestr(fi->name, "core") == NULL)
-        return findings;
+        goto RET;
 
+    /* Return if not an ELF file */
     int arch = has_elf_magic_bytes(fi);
     if (
-        (arch == 0) ||
+        (arch == NOT_ELF) ||
         (arch == X86 && sizeof(char *) != 4) ||
         (arch == X64 && sizeof(char *) != 8))
-        return findings;
+        goto RET;
 
+    /* Parse the elf file */
     Elf_File *elf = parse_elf(fi);
     if (elf == NULL)
     {
         DEBUG_PRINT("Failed to parse elf at location -> %s\n", fi->location);
-        return findings;
+        goto RET;
     }
 
-    // Test if the elf file is a core dump
+    /* Do the test to see if its a core dump file */
     if ((unsigned short)elf->header->e_type == (unsigned short)ET_CORE)
     {
         findings++;
@@ -83,6 +88,7 @@ int core_dump_scan(File_Info *fi, All_Results *ar, Args *cmdline)
     }
 
     close_elf(elf, fi);
+RET:
     return findings;
 }
 
@@ -91,5 +97,6 @@ int core_dump_scan(File_Info *fi, All_Results *ar, Args *cmdline)
  */
 static void add_issue_wrapper(int id, File_Info *fi, int severity, All_Results *ar, Args *cmdline, char *issue_name)
 {
+    // TODO refractor out the id
     add_issue(severity, id, fi->location, ar, cmdline, issue_name, "");
 }

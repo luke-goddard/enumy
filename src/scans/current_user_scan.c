@@ -1,16 +1,10 @@
 /*
-Current user details
-Last logged on users
-Shows users logged onto the host
-List all users including uid/gid information
-List root accounts
-Extracts password policies and hash storage method information
-Checks umask value
-Checks if password hashes are stored in /etc/passwd
-Extract full details for ‘default’ uid’s such as 0, 1000, 1001 etc
-Attempt to read restricted files i.e. /etc/shadow
-List current users history files (i.e .bash_history, .nano_history etc.)
-Basic SSH checks
+    This file is used to show some useful output to the screen
+    if you've ever used LinEnum it should be a smaller version of that 
+
+    The results from this are never saved and are only there as helpful
+    information for the pentester to read while waiting for the scan to 
+    complete
 */
 
 #include "debug.h"
@@ -34,7 +28,8 @@ static void execute_command_show_output(char *cmd, char *heading, bool line);
 /* ============================ FUNCTIONS ============================== */
 
 /**
- * This function kicks off all of the current user scans 
+ * This function just runs some bash commands and prints the output to the screen
+ * Useful durning a CTF
  */
 void current_user_scan()
 {
@@ -57,11 +52,13 @@ static void execute_command_show_output(char *cmd, char *heading, bool line)
     char buf[MAXSIZE];
     FILE *fp = popen(cmd, "r");
 
+    /* Format the heading */
     if (line == ONE_LINE)
         print_heading_oneliner(heading);
     else
         print_heading(heading);
 
+    /* print the actual results */
     if (fp != NULL)
     {
         size_t byte_count = fread(buf, 1, MAXSIZE - 1, fp);

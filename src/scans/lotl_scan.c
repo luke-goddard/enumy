@@ -1,3 +1,8 @@
+/* 
+    Full credit to https://gtfobins.github.io/ for the list of files 
+    I've just copied this list and automated the scanning process 
+*/
+
 #include "debug.h"
 #include "file_system.h"
 #include "scan.h"
@@ -29,20 +34,21 @@
 void lotl_scan(File_Info *fi, All_Results *ar, Args *cmdline);
 
 static void search_implementation(int tool_type, File_Info *fi, All_Results *ar, Args *cmdline);
-static void report_issue(int id, int lvl, char *issue_message, File_Info *fi, All_Results *ar, Args *cmdline);
-
-static void report_buildtools(File_Info *fi, All_Results *ar, Args *cmdline);
-static void report_shell(File_Info *fi, All_Results *ar, Args *cmdline);
-static void report_reverse_shell(File_Info *fi, All_Results *ar, Args *cmdline);
-static void report_bind_shell(File_Info *fi, All_Results *ar, Args *cmdline);
-static void report_non_interactive_bind_shell(File_Info *fi, All_Results *ar, Args *cmdline);
-static void report_file_upload(File_Info *fi, All_Results *ar, Args *cmdline);
-static void report_file_read(File_Info *fi, All_Results *ar, Args *cmdline);
-static void report_file_write(File_Info *fi, All_Results *ar, Args *cmdline);
-static void report_lib_load(File_Info *fi, All_Results *ar, Args *cmdline);
-static void report_file_download(File_Info *fi, All_Results *ar, Args *cmdline);
+static void report_issue(File_Info *fi, All_Results *ar, Args *cmdline, int type);
 
 /* ============================ CONSTANTS ============================== */
+
+/* Issue description messages */
+const char *BuildToolsIssueDesc = "Development tool found";
+const char *ShellIssueDesc = "Executable that can breakout of restricted shells found";
+const char *RevShellIssueDesc = "Executable capable of spawning reverse shells found";
+const char *BindShellIssueDesc = "Executable capable of spawning bind shells found";
+const char *NonInterShellIssueDesc = "Executable capable of non interactive bind shells found";
+const char *FileUploadIssueDesc = "Executable capable of exfiltrating files off the network found";
+const char *FileReadIssueDesc = "Executable capable of reading arbitrary files as root found";
+const char *FileWriteIssueDesc = "Executable capable of writing arbitrary files as root found";
+const char *LibLoadIssueDesc = "Executable capable of loading shared libaries as root found";
+const char *FileDownloadIssueDesc = "Executable capable of exfiltrating files off the network found";
 
 /* Build tools should not be found on production environments */
 const char *BuildTools[] = {
@@ -122,11 +128,6 @@ void *TotalTools[] = {
     &BuildTools, &ShellTools, &RevShellTools, &BindShellTools, &NonInterShellTools,
     &FileUploadTools, &FileReadTools, &FileWriteTools, &LibLoadTools, &FileDownloadTools};
 
-/* List of function pointers that point will report issues, note that these are stored in order of the defined values */
-void (*ReportFuncPtrs[TOTAL_CATEGORY_COUNT])() = {
-    report_buildtools, report_shell, report_reverse_shell, report_bind_shell, report_non_interactive_bind_shell,
-    report_file_upload, report_file_read, report_file_write, report_lib_load, report_file_download};
-
 /* ============================ FUNCTIONS ============================== */
 
 /**
@@ -137,7 +138,10 @@ void (*ReportFuncPtrs[TOTAL_CATEGORY_COUNT])() = {
  */
 void lotl_scan(File_Info *fi, All_Results *ar, Args *cmdline)
 {
-    // Scans that don't require the current file to be SUID
+    if (!has_executable(fi))
+        return;
+
+    /* Scans that don't require the current file to be SUID */
     search_implementation(BUILD_TOOLS, fi, ar, cmdline);
     search_implementation(SHELL, fi, ar, cmdline);
     search_implementation(REVERSE_SHELL, fi, ar, cmdline);
@@ -149,7 +153,7 @@ void lotl_scan(File_Info *fi, All_Results *ar, Args *cmdline)
     if (!has_suid(fi))
         return;
 
-    // Scans that do require the current file to be SUID
+    /* Scans that do require the current file to be SUID */
     search_implementation(FILE_WRITE, fi, ar, cmdline);
     search_implementation(FILE_READ, fi, ar, cmdline);
     search_implementation(LIB_LOAD, fi, ar, cmdline);
@@ -169,145 +173,94 @@ static void search_implementation(int tool_type, File_Info *fi, All_Results *ar,
 {
     int const_array_size;
 
-    // Check that the type exists
+    /* Check that the type exists */
     if (tool_type < 0 || tool_type > TOTAL_CATEGORY_COUNT)
     {
         DEBUG_PRINT("Recived unknown type %i inside of lotl_scan\n", tool_type);
         return;
     }
 
-    // Set the array to the const char * pointer that is related to the current scan type
+    /* Set the array to the const char * pointer that is related to the current scan type */
     const char **const_array = TotalTools[tool_type];
 
-    // Get the size of the array we are going to search
-    // There must be a better way to do this but its late :/
-    switch (tool_type)
-    {
-    case BUILD_TOOLS:
+    /* Get the size of the array we are going to search */
+    /* There must be a better way to do this but its late */
+
+    if (tool_type == BUILD_TOOLS)
         const_array_size = sizeof BuildTools / sizeof(BuildTools[0]);
-        break;
 
-    case SHELL:
+    else if (tool_type == SHELL)
         const_array_size = sizeof ShellTools / sizeof(ShellTools[0]);
-        break;
 
-    case REVERSE_SHELL:
+    else if (tool_type == REVERSE_SHELL)
         const_array_size = sizeof RevShellTools / sizeof(RevShellTools[0]);
-        break;
 
-    case BIND_SHELL:
+    else if (tool_type == BIND_SHELL)
         const_array_size = sizeof BindShellTools / sizeof(BindShellTools[0]);
-        break;
 
-    case NON_INTERACTIVE_BIND_SHELL:
+    else if (tool_type == NON_INTERACTIVE_BIND_SHELL)
         const_array_size = sizeof NonInterShellTools / sizeof(NonInterShellTools[0]);
-        break;
 
-    case FILE_UPLOAD:
+    else if (tool_type == FILE_UPLOAD)
         const_array_size = sizeof FileUploadTools / sizeof(FileUploadTools[0]);
-        break;
 
-    case FILE_DOWNLOAD:
+    else if (tool_type == FILE_DOWNLOAD)
         const_array_size = sizeof FileDownloadTools / sizeof(FileDownloadTools[0]);
-        break;
 
-    case FILE_WRITE:
+    else if (tool_type == FILE_WRITE)
         const_array_size = sizeof FileWriteTools / sizeof(FileWriteTools[0]);
-        break;
 
-    case FILE_READ:
+    else if (tool_type == FILE_READ)
         const_array_size = sizeof FileReadTools / sizeof(FileReadTools[0]);
-        break;
 
-    case LIB_LOAD:
+    else if (tool_type == LIB_LOAD)
         const_array_size = sizeof LibLoadTools / sizeof(LibLoadTools[0]);
-        break;
-    }
 
-    // Itterate through the files we're searching for, if current file matches it then report it
-    // as an issue
+    /* Itterate through the files we're searching for */
     for (int i = 0; i < const_array_size; i++)
     {
+        /* if current file matches it then report it  as an issue */
         if ((const_array[i][0] == fi->name[0]) && (strcmp(const_array[i], fi->name) == 0))
-            (*ReportFuncPtrs[tool_type])(fi, ar, cmdline);
+            report_issue(fi, ar, cmdline, tool_type);
     }
-}
-
-static void report_buildtools(File_Info *fi, All_Results *ar, Args *cmdline)
-{
-    report_issue(255, MED, "Development tool found", fi, ar, cmdline);
-}
-
-static void report_shell(File_Info *fi, All_Results *ar, Args *cmdline)
-{
-    report_issue(256, LOW, "Executable that can breakout of restricted shells found", fi, ar, cmdline);
-}
-
-static void report_reverse_shell(File_Info *fi, All_Results *ar, Args *cmdline)
-{
-    report_issue(257, MED, "Executable capable of spawning reverse shells found", fi, ar, cmdline);
-}
-
-static void report_bind_shell(File_Info *fi, All_Results *ar, Args *cmdline)
-{
-    report_issue(258, MED, "Executable capable of spawning bind shells found", fi, ar, cmdline);
-}
-
-static void report_non_interactive_bind_shell(File_Info *fi, All_Results *ar, Args *cmdline)
-{
-    report_issue(259, MED, "Executable capable of non interactive bind shells found", fi, ar, cmdline);
-}
-
-static void report_file_upload(File_Info *fi, All_Results *ar, Args *cmdline)
-{
-    report_issue(260, LOW, "Executable capable of exfiltrating files off the network found", fi, ar, cmdline);
-}
-
-static void report_file_read(File_Info *fi, All_Results *ar, Args *cmdline)
-{
-    report_issue(261, HIGH, "Executable capable of reading arbitrary files as root found", fi, ar, cmdline);
-}
-
-static void report_file_write(File_Info *fi, All_Results *ar, Args *cmdline)
-{
-    report_issue(262, HIGH, "Executable capable of writing arbitrary files as root found", fi, ar, cmdline);
-}
-
-static void report_lib_load(File_Info *fi, All_Results *ar, Args *cmdline)
-{
-    report_issue(263, HIGH, "Executable capable of loading shared libaries as root found", fi, ar, cmdline);
-}
-
-static void report_file_download(File_Info *fi, All_Results *ar, Args *cmdline)
-{
-    report_issue(264, LOW, "Executable capable of downloading found", fi, ar, cmdline);
 }
 
 /**
- * This function is called by wrapper functions to report an issue based of the functions parameters 
- * @param id issue id 
- * @param lvl issue serverity level
- * @param issue_message issue description to save
- * @param fi the current file 
- * @param ar the results structs
- * @param cmdline runtime arguments
+ * Wrapper function to report an issue 
+ * @param fi This is the files information 
+ * @param ar This a struct containing the linked list of enumy findings 
+ * @param cmdline This is the runtime arguments 
+ * @param type This is the type of issue to raise
  */
-static void report_issue(int id, int lvl, char *issue_message, File_Info *fi, All_Results *ar, Args *cmdline)
+static void report_issue(File_Info *fi, All_Results *ar, Args *cmdline, int type)
 {
-    if (has_elf_magic_bytes(fi) == 0)
-        return;
+    if (type == BUILD_TOOLS)
+        add_issue(MED, 0, fi->location, ar, cmdline, (char *)BuildToolsIssueDesc, "");
 
-    Result *new_result = create_new_issue();
-    set_id_and_desc(id, new_result);
-    set_issue_location(fi->location, new_result);
-    set_issue_name(issue_message, new_result);
+    else if (type == SHELL)
+        add_issue(LOW, 0, fi->location, ar, cmdline, (char *)ShellIssueDesc, "");
 
-    if (lvl == HIGH)
-        add_new_result_high(new_result, ar, cmdline);
-    if (lvl == MED)
-        add_new_result_medium(new_result, ar, cmdline);
-    if (lvl == LOW)
-        add_new_result_low(new_result, ar, cmdline);
-    if (lvl == INFO)
-        add_new_result_info(new_result, ar, cmdline);
+    else if (type == REVERSE_SHELL)
+        add_issue(MED, 0, fi->location, ar, cmdline, (char *)RevShellIssueDesc, "");
+
+    else if (type == BIND_SHELL)
+        add_issue(MED, 0, fi->location, ar, cmdline, (char *)BindShellIssueDesc, "");
+
+    else if (type == NON_INTERACTIVE_BIND_SHELL)
+        add_issue(LOW, 0, fi->location, ar, cmdline, (char *)NonInterShellIssueDesc, "");
+
+    else if (type == FILE_UPLOAD)
+        add_issue(LOW, 0, fi->location, ar, cmdline, (char *)FileUploadIssueDesc, "");
+
+    else if (type == FILE_READ)
+        add_issue(HIGH, 0, fi->location, ar, cmdline, (char *)FileReadIssueDesc, "");
+
+    else if (type == FILE_WRITE)
+        add_issue(HIGH, 0, fi->location, ar, cmdline, (char *)FileWriteIssueDesc, "");
+
+    else if (type == LIB_LOAD)
+        add_issue(HIGH, 0, fi->location, ar, cmdline, (char *)LibLoadIssueDesc, "");
+
+    else if (type == FILE_DOWNLOAD)
+        add_issue(LOW, 0, fi->location, ar, cmdline, (char *)FileDownloadIssueDesc, "");
 }

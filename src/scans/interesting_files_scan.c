@@ -24,6 +24,8 @@
 #include <math.h>
 #include <string.h>
 
+/* ============================ DEFINES ============================== */
+
 #define ENTROPY_SIZE 5000
 
 /* ============================ PROTOTYPES ============================== */
@@ -81,12 +83,12 @@ static int extension_checker(File_Info *fi, All_Results *ar, Args *cmdline)
         }
         break;
     case 'c':
-        if (strcmp(fi->extension, "config") == 0)
+        if ((strcmp(fi->extension, "config") == 0) ||
+            (strcmp(fi->extension, "conf") == 0))
             findings += search_conf_for_pass(fi, ar, cmdline);
 
         else if (strcmp(fi->extension, "conf") == 0)
             findings += search_conf_for_pass(fi, ar, cmdline);
-
         break;
     case 'd':
         if (strcmp(fi->extension, "des") == 0)
@@ -96,27 +98,17 @@ static int extension_checker(File_Info *fi, All_Results *ar, Args *cmdline)
     case 'k':
         if (strcmp(fi->extension, "key") == 0)
             findings += (check_for_encryption_key(fi, ar, cmdline) == true) ? 1 : 0;
-
         break;
     case 'p':
-        if (strcmp(fi->extension, "ini") == 0)
+        if (strcmp(fi->extension, "php") == 0)
             findings += (search_conf_for_pass(fi, ar, cmdline) == true) ? 1 : 0;
 
-        else if (strcmp(fi->extension, "php") == 0)
-            findings += (search_conf_for_pass(fi, ar, cmdline) == true) ? 1 : 0;
-
-        else if (strcmp(fi->extension, "password") == 0)
+        else if (
+            (strcmp(fi->extension, "password") == 0) ||
+            (strcmp(fi->extension, "passwords") == 0) ||
+            (strcmp(fi->extension, "private") == 0) ||
+            (strcmp(fi->extension, "pk") == 0))
             findings += (check_for_encryption_key(fi, ar, cmdline) == true) ? 1 : 0;
-
-        else if (strcmp(fi->extension, "passwords") == 0)
-            findings += (check_for_encryption_key(fi, ar, cmdline) == true) ? 1 : 0;
-
-        else if (strcmp(fi->extension, "private") == 0)
-            findings += (check_for_encryption_key(fi, ar, cmdline) == true) ? 1 : 0;
-
-        else if (strcmp(fi->extension, "pk") == 0)
-            findings += (check_for_encryption_key(fi, ar, cmdline) == true) ? 1 : 0;
-
         break;
     case 'r':
         if (strcmp(fi->extension, "rsa") == 0)
@@ -184,16 +176,16 @@ static bool check_for_encryption_key(File_Info *fi, All_Results *ar, Args *cmdli
 {
     float entropy;
 
-    if (strstr(fi->location, "/test/") || strstr(fi->location, "/tests/") || strstr(fi->location, "/testing/"))
+    /* Ignore files in test as they give too many false positives */
+    if (strstr(fi->location, "test") ||
+        strstr(fi->location, "integration"))
         return false;
 
-    if (strstr(fi->location, "integration") && strstr(fi->location, "test"))
-        return false;
-
-    // Data probably too big to be a key
+    /* Data probably too big to be a key */
     if (fi->stat->st_size > 100000 || fi->stat->st_size < 100)
         return false;
 
+    /* Cannot read the file */
     if (access(fi->location, R_OK) != 0)
     {
     NONREADABLE:
@@ -201,6 +193,7 @@ static bool check_for_encryption_key(File_Info *fi, All_Results *ar, Args *cmdli
         return true;
     }
 
+    /* Check the file's entropy */
     entropy = caclulate_file_entropy(fi->location);
     if (entropy > 7.0)
         return false;
@@ -211,6 +204,7 @@ static bool check_for_encryption_key(File_Info *fi, All_Results *ar, Args *cmdli
     if (getuid() == 0 && fi->stat->st_uid == 0)
         goto NONREADABLE;
 
+    /* Raise the issue */
     add_issue(HIGH, 45, fi->location, ar, cmdline, "Low entropy file that could be a private key", "");
     return true;
 }
@@ -234,6 +228,7 @@ static double caclulate_file_entropy(char *file_location)
     int wherechar[256];
     double entropy = 0;
 
+    /* Open the file */
     f = fopen(file_location, "r");
     if (f == NULL)
     {
@@ -251,13 +246,13 @@ static double caclulate_file_entropy(char *file_location)
 
     fclose(f);
 
-    // Check for integer underflow
+    /* Check for integer underflow */
     if (len == 0)
         str[0] = '\0';
-
     else
         str[--len] = '\0';
 
+    /* Allocate the histogram */
     hist = (unsigned int *)calloc(len, sizeof(int));
     if (hist == NULL)
     {
@@ -265,11 +260,12 @@ static double caclulate_file_entropy(char *file_location)
         return -1;
     }
 
-    // Create histogram
+    /* init histogram */
     histlen = 0;
     for (i = 0; i < 256; i++)
         wherechar[i] = 0;
 
+    /* Populate the histogram */
     for (i = 0; i < len; i++)
     {
         current_pos = str[i];
@@ -281,7 +277,7 @@ static double caclulate_file_entropy(char *file_location)
         hist[wherechar[(unsigned char)str[i]]]++;
     }
 
-    // Calculate entropy
+    /* Calculate entropy */
     for (i = 0; i < histlen; i++)
         entropy -= (double)hist[i] / len * log2((double)hist[i] / len);
 
@@ -306,14 +302,17 @@ static int search_conf_for_pass(File_Info *fi, All_Results *ar, Args *cmdline)
     char line[MAXSIZE];
     FILE *file = fopen(fi->location, "r");
 
+    /* Check the file is not NULL */
     if (file == NULL)
     {
         DEBUG_PRINT("Failed to open file at location -> %s\n", fi->location);
         return findings;
     }
 
+    /* Search for password keywords and raise issue if found */
     while (fgets(line, MAXSIZE, file))
     {
+        /* Ignore commented lines */
         if (line[0] == '#')
             continue;
 
@@ -338,7 +337,7 @@ static int search_conf_for_pass(File_Info *fi, All_Results *ar, Args *cmdline)
  * object 
  * @param fi A struct containing the files information 
  * @param ar a struct containing all of the results that enumy has previously found
- * @param cmdline A struct containing the runtime arguments for enumy j
+ * @param cmdline A struct containing the runtime arguments for enumy 
  * @return 1 if found to be writable 
  */
 static int check_for_writable_shared_object(File_Info *fi, All_Results *ar, Args *cmdline)

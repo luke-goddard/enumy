@@ -32,9 +32,17 @@
 
 /* ============================ PROTOTYPES ============================== */
 
+int capabilities_scan(File_Info *fi, All_Results *ar, Args *cmdline);
+
 static int check_cap(cap_t caps_for_file, cap_value_t search);
-static void add_issue_wrapper(int issue_type, int id, File_Info *fi, All_Results *ar, Args *cmdline, char *issue_name);
-static void scan_cap(int issue_serverity, cap_t current_caps, File_Info *fi, All_Results *ar, Args *cmdline, char *issue_name, cap_value_t cap_to_find);
+
+static void add_issue_wrapper(int issue_type, int id, File_Info *fi,
+                              All_Results *ar, Args *cmdline, char *issue_name);
+
+static void scan_cap(int issue_serverity, cap_t current_caps, File_Info *fi,
+                     All_Results *ar, Args *cmdline, char *issue_name, cap_value_t cap_to_find);
+
+/* ============================ FUNCTIONS ============================== */
 
 /**
  * given a file with it's information in fi, this function will test to see if
@@ -49,21 +57,21 @@ int capabilities_scan(File_Info *fi, All_Results *ar, Args *cmdline)
     int findings = 0;
     cap_t cap;
 
+    /* Check that the file is executable */
     if (!has_executable(fi))
-        return findings;
+        goto RET;
 
+    /* Open the file */
     int fd = open(fi->location, O_RDONLY);
     if (fd == -1)
-        return findings;
+        goto RET;
 
+    /* Populate the capablities */
     cap = cap_get_fd(fd);
     if (cap == NULL)
-    {
-        close(fd);
-        return findings;
-    }
+        goto CLOSE_RET;
 
-    // HIGH issue serverity
+    /* HIGH issue serverity */
     scan_cap(HIGH, cap, fi, ar, cmdline, "CAP_NET_BIND_SERVICE capablities enabled on file", CAP_NET_BIND_SERVICE);
     scan_cap(HIGH, cap, fi, ar, cmdline, "CAP_DAC_READ_SEARCH capablities enabled on file", CAP_DAC_READ_SEARCH);
     scan_cap(HIGH, cap, fi, ar, cmdline, "CAP_MAC_OVERRIDE capablities enabled on file", CAP_MAC_OVERRIDE);
@@ -85,7 +93,7 @@ int capabilities_scan(File_Info *fi, All_Results *ar, Args *cmdline)
     scan_cap(HIGH, cap, fi, ar, cmdline, "CAP_CHOWN capablities enabled on file", CAP_CHOWN);
     scan_cap(HIGH, cap, fi, ar, cmdline, "CAP_LEASE capablities enabled on file", CAP_LEASE);
 
-    // MEDIUM issue serverity
+    /* MEDIUM issue serverity */
     scan_cap(MEDIUM, cap, fi, ar, cmdline, "CAP_AUDIT_CONTROL capablities enabled on file", CAP_AUDIT_CONTROL);
     scan_cap(MEDIUM, cap, fi, ar, cmdline, "CAP_BLOCK_SUSPEND capablities enabled on file", CAP_BLOCK_SUSPEND);
     scan_cap(MEDIUM, cap, fi, ar, cmdline, "CAP_NET_BROADCAST capablities enabled on file", CAP_NET_BROADCAST);
@@ -96,7 +104,7 @@ int capabilities_scan(File_Info *fi, All_Results *ar, Args *cmdline)
     scan_cap(MEDIUM, cap, fi, ar, cmdline, "CAP_IPC_LOCK capablities enabled on file", CAP_IPC_LOCK);
     scan_cap(MEDIUM, cap, fi, ar, cmdline, "CAP_KILL capablities enabled on file", CAP_KILL);
 
-    // LOW issue serverity
+    /* LOW issue serverity */
     scan_cap(LOW, cap, fi, ar, cmdline, "CAP_LINUX_IMMUTABLE capablities enabled on file", CAP_LINUX_IMMUTABLE);
     scan_cap(LOW, cap, fi, ar, cmdline, "CAP_SYS_RESOURCE capablities enabled on file", CAP_SYS_RESOURCE);
     scan_cap(LOW, cap, fi, ar, cmdline, "CAP_SYS_BOOT capablities enabled on file", CAP_SYS_BOOT);
@@ -105,7 +113,10 @@ int capabilities_scan(File_Info *fi, All_Results *ar, Args *cmdline)
     scan_cap(LOW, cap, fi, ar, cmdline, "CAP_MKNOD capablities enabled on file", CAP_MKNOD);
 
     cap_free(cap);
+
+CLOSE_RET:
     close(fd);
+RET:
     return findings;
 }
 
