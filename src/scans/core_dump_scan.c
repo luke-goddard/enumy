@@ -92,6 +92,8 @@ RET:
     return findings;
 }
 
+/* ============================ STATIC  ============================== */
+
 /**
  * Wrapper function to raise the issue
  */
