@@ -2,9 +2,12 @@
 
 #include <stdbool.h>
 
-extern bool DEBUG;
-extern bool DEBUG_EXTRA;
+/* Optional debugging settings, specified at runtime */
+extern bool DEBUG;       /* Set inside of enumy.c */
+extern bool DEBUG_EXTRA; /* Set inside of enumy.c */
 
+/* This function will only be executed if the runtime argument */
+/* -d 1 or -d 2 is passed */
 #define DEBUG_PRINT(fmt, ...)                             \
     do                                                    \
     {                                                     \
@@ -13,6 +16,8 @@ extern bool DEBUG_EXTRA;
                     __LINE__, __func__, __VA_ARGS__);     \
     } while (0)
 
+/* This function will only be executed if the runtime argument */
+/* -d 2 is passed */
 #define DEBUG_PRINT_EXTRA(fmt, ...)                                     \
     do                                                                  \
     {                                                                   \

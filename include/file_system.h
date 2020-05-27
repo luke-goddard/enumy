@@ -1,3 +1,7 @@
+/*
+    CHANGE ME 
+*/
+
 #pragma once
 
 #include <sys/types.h>
@@ -8,8 +12,12 @@
 
 #include "results.h"
 
+/* ============================ DEFINES ============================== */
+
 #define MAX_FILE_SIZE 1024
 #define MAX_EXTENSION_SIZE 16
+
+/* ============================ STRUCTS ============================== */
 
 typedef struct File_Info
 {
@@ -33,6 +41,8 @@ typedef struct Thread_Pool_Args
     All_Results *all_results;
     Args *cmdline;
 } Thread_Pool_Args;
+
+/* ============================ PROTOTYPES ============================== */
 
 void walk_file_system(char *entry_location, All_Results *all_results, Args *cmdline);
 

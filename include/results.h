@@ -1,9 +1,15 @@
+/*
+    CHANGE ME 
+*/
+
 #pragma once
 
 #include "main.h"
 
 #include <stdbool.h>
 #include <pthread.h>
+
+/* ============================ DEFINES ============================== */
 
 #define COLOR_HIGH "\033[0;31m"   // red
 #define COLOR_MEDIUM "\033[0;33m" // yellow
@@ -22,6 +28,8 @@
 
 #define FIRST_ID -1
 #define INCOMPLETE_ID -1
+
+/* ============================ STRUCTS ============================== */
 
 typedef struct Result
 {
@@ -56,6 +64,8 @@ typedef struct All_Results
     int highest_id;
     pthread_mutex_t mutex;
 } All_Results;
+
+/* ============================ PROTOTYPES ============================== */
 
 void print_heading(char *s);
 void print_heading_oneliner(char *s);

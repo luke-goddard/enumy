@@ -18,6 +18,8 @@ int break_out_binary_scan(File_Info *fi, All_Results *ar, Args *cmdline);
 static void add_issue_wrapper(int id, char *name, File_Info *fi, All_Results *ar, Args *cmdline);
 static bool compare_and_add_issue(int id, File_Info *fi, All_Results *ar, Args *cmdline, char *search_str);
 
+/* ============================ FUNCTIONS ============================== */
+
 /**
  * Should only be called if the file is known to be SUID or GUID or can be run as root e.g $sudo -l 
  * Compares the current file and tests to see if it matches a list of known breakout binaries

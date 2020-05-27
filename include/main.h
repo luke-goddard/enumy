@@ -1,11 +1,19 @@
+/*
+    CHANGE ME 
+*/
+
 #pragma once
 
 #include <stdbool.h>
 #include <thpool.h>
 #include <vector.h>
 
+/* ============================ DEFINES ============================== */
+
 #define MAXSIZE 2048
 #define VERSION "v1.05"
+
+/* ============================ STRUCTS ============================== */
 
 typedef struct Args
 {

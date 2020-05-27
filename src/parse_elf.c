@@ -68,6 +68,7 @@ int has_elf_magic_bytes(File_Info *fi)
     // Check the size of the file first
     // Get rid of the endian stuff
     // Use memcpy
+    // Get the architecture from the ELF headers
     const int magic_size = 5;
 
     unsigned char values[5] = {0x00, 0x00, 0x00, 0x00};
@@ -125,7 +126,7 @@ int has_elf_magic_bytes(File_Info *fi)
 Elf_File *parse_elf(File_Info *fi)
 {
     int fd;
-    Elf_File *file = NULL;
+    Elf_File *elf = NULL;
 
     /* Check to see if the current file is executable and not empty*/
     if (
@@ -150,16 +151,16 @@ Elf_File *parse_elf(File_Info *fi)
         goto FAILURE;
 
     /* Try and allocate memory for the elf file */
-    file = malloc(sizeof(Elf_File));
-    if (file == NULL)
+    elf = malloc(sizeof(Elf_File));
+    if (elf == NULL)
     {
         close(fd);
         goto FAILURE;
     }
 
     /* Map the elf file into memory */
-    file->address = mmap(NULL, fi->stat->st_size, PROT_READ, MAP_PRIVATE, fd, 0);
-    if (file->address == MAP_FAILED)
+    elf->address = mmap(NULL, fi->stat->st_size, PROT_READ, MAP_PRIVATE, fd, 0);
+    if (elf->address == MAP_FAILED)
     {
         DEBUG_PRINT("%s\n", "Fauled to map binary into memory");
         goto FAILURE;
@@ -167,39 +168,39 @@ Elf_File *parse_elf(File_Info *fi)
     close(fd);
 
     /* Populate the Elf_Files struct pointers */
-    file->fi = fi;
-    file->dynamic_size = 0;
-    file->header = elf_header(file->address);
+    elf->fi = fi;
+    elf->dynamic_size = 0;
+    elf->header = elf_header(elf->address);
 
     // TODO: Support 64 bit elf's with most significant bit first
-    if (file->header->e_ident[EI_DATA] == ELFDATA2MSB && magic_result == X64)
+    if (elf->header->e_ident[EI_DATA] == ELFDATA2MSB && magic_result == X64)
     {
         DEBUG_PRINT("Found a 64bit binary with most significat bit enabled, skipping parsing of this file -> %s\n", fi->location);
         goto FAILURE_CLOSE_ELF;
     }
 
     /* Get the section headers */
-    file->sections = elf_sheader(file->address);
-    if (file->sections == NULL)
+    elf->sections = elf_sheader(elf->address);
+    if (elf->sections == NULL)
     {
         DEBUG_PRINT("Failed to parse elf's section headers for file -> %s\n", fi->location);
         goto FAILURE_CLOSE_ELF;
     }
 
     /* Get the program headers */
-    file->program_headers = elf_program_header(file);
-    if (file->program_headers == NULL)
+    elf->program_headers = elf_program_header(elf);
+    if (elf->program_headers == NULL)
     {
         DEBUG_PRINT("Failed to parse elf's program headers for file -> %s\n", fi->location);
         goto FAILURE_CLOSE_ELF;
     }
 
-    /* Everything went smoothly*/
-    return file;
+    /* Everything went smoothly */
+    return elf;
 
 /* Enumy failed to parse the ELF, requires investigation */
 FAILURE_CLOSE_ELF:
-    close_elf(file, fi);
+    close_elf(elf, fi);
 
 /* Probably not an elf file */
 FAILURE:
@@ -296,21 +297,44 @@ void close_elf(Elf_File *elf_file, File_Info *fi)
 
 /* ============================ STATIC FUNCTIONS ============================== */
 
+/**
+ * Get's the location of the ELF headers 
+ * @param map_start This is the base address of the mmaped ELF file
+ * @return The offset of the elf headers 
+ */
 static inline Elf_Ehdr *elf_header(const void *map_start)
 {
     return (Elf_Ehdr *)map_start;
 }
 
+/**
+ * Get's the location of the  ELF section headers 
+ * e_shoff is the section_header_offset we can just add this too the ELF's base addess 
+ * @param map_start This is the base address of the mmaped ELF file 
+ * @return The offset of the elf section headers 
+ */
 static inline Elf_Shdr *elf_sheader(const void *map_start)
 {
     return (Elf_Shdr *)((Elf_Addr)elf_header(map_start) + (Elf_Off)elf_header(map_start)->e_shoff);
 }
 
+/**
+ * Get the elf section offset for idx postioned section
+ * @param map_start This is the base address of the mmaped ELF file 
+ * @param idx This is the section header table index for the section that we're interested in
+ * @return The offset for the elf section at position idx
+ */
 static inline Elf_Shdr *elf_section(const void *map_start, int idx)
 {
     return &elf_sheader(map_start)[idx];
 }
 
+/**
+ * e_shstrndx This member holds the section header table index of the entry associated with the section name string table.
+ * If the file has no section name string table, this member holds the value SHN_UNDEF.
+ * @param map_start This is the base address of the mmaped ELF file 
+ * @return The offset for the string table 
+ */
 static inline char *elf_shstr_table(const void *map_start)
 {
     if (elf_header(map_start)->e_shstrndx == SHN_UNDEF)
@@ -318,45 +342,71 @@ static inline char *elf_shstr_table(const void *map_start)
     return (char *)map_start + (int)(elf_section(map_start, elf_header(map_start)->e_shstrndx))->sh_offset;
 }
 
-static inline Elf_Phdr *elf_program_header(Elf_File *file)
+/**
+ * finds the program headers 
+ * @param elf This is the elf file that has alredy been partially parsed
+ * @return The offset of the ELF's program headers
+ */
+static inline Elf_Phdr *elf_program_header(Elf_File *elf)
 {
-    return (Elf_Phdr *)(file->address + file->header->e_phoff);
+    return (Elf_Phdr *)(elf->address + elf->header->e_phoff);
 }
 
-// This function searches for the section pointing to the dynamic string offset
-// This function is takes up around 63% of CPU time, because elf files can have
-// thousands of sections.
-static Elf_Off elf_dynamic_strings_offset(Elf_File *file)
+/**
+ * This file will search through the elf file sections until it finds the SHT_STRTAB (string table) section
+ * Once the string table offset has been found we will return it. The offset is obvious architecture dependent 
+ * When using the offset you will have to add it to the mapped memories base address  
+ * NOTE: This function is extremely CPU intrestive
+ * @param elf This is the parsed elf file 
+ * @return 0 if the offset is not found or a None 0 offset on success
+ */
+static Elf_Off elf_dynamic_strings_offset(Elf_File *elf)
 {
-    if (file->header->e_shnum + ((Elf_Addr)file->sections - (Elf_Addr)file->address) > (long unsigned int)file->fi->stat->st_size)
+    /* Find the number of elf sections and make sure that we do not got out of bounds of the mmaped memory */
+    if (elf->header->e_shnum + ((Elf_Addr)elf->sections - (Elf_Addr)elf->address) > (long unsigned int)elf->fi->stat->st_size)
     {
-        DEBUG_PRINT("Failed parse elf's sections, offset is bigger than mapped memory -> %s\n", file->fi->location);
+        DEBUG_PRINT("Failed parse elf's sections, offset is bigger than mapped memory -> %s\n", elf->fi->location);
         return 0;
     }
-    for (Elf_Off i = 0; i < file->header->e_shnum; i++)
+
+    /* Loop through all the elf headers until we run out of headers or find the string table entry*/
+    for (Elf_Off i = 0; i < elf->header->e_shnum; i++)
     {
-        if (file->sections[i].sh_type == SHT_STRTAB)
+        if (elf->sections[i].sh_type == SHT_STRTAB)
         {
-            if (file->sections[i].sh_offset > (long unsigned int)file->fi->stat->st_size)
+            /* Another check to see if the offset is within the range of the mapped memory */
+            if (elf->sections[i].sh_offset > (long unsigned int)elf->fi->stat->st_size)
             {
-                DEBUG_PRINT("Failed parse elf's dynamic strings, offset is bigger than mapped memory -> %s\n", file->fi->location);
-                return 0;
+                DEBUG_PRINT("Failed parse elf's dynamic strings, offset is bigger than mapped memory -> %s\n", elf->fi->location);
+                goto NOTHING_FOUND;
             }
-            return file->sections[i].sh_offset;
+            /* Return the string table offset */
+            return elf->sections[i].sh_offset;
         }
     }
+NOTHING_FOUND:
     return 0;
 }
 
-static Elf_Phdr *get_dynamic_sections_program_header(Elf_File *file)
+/**
+ * This function will try and find the dynamic section in the program headers 
+ * @param elf This is the ELF file that has been parsed 
+ * @return Null if not found else the offset of the program header that points to the dynamic section 
+ */
+static Elf_Phdr *get_dynamic_sections_program_header(Elf_File *elf)
 {
-    if (file->header == NULL || file->program_headers == NULL)
+    /* Sanity check we have parsed the ELF file */
+    if (elf->header == NULL || elf->program_headers == NULL)
         return NULL;
 
-    for (int i = 0; i < file->header->e_phnum; i++)
+    /* Itterate through the headers until we find the header */
+    /* that points to the dynamic section */
+    for (int i = 0; i < elf->header->e_phnum; i++)
     {
-        if (file->program_headers[i].p_type == PT_DYNAMIC)
-            return &file->program_headers[i];
+        if (elf->program_headers[i].p_type == PT_DYNAMIC)
+            return &elf->program_headers[i];
     }
+
+    /* Failed to find the dynamic section */
     return NULL;
 }
