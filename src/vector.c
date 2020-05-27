@@ -3,7 +3,19 @@
 
 #include "vector.h"
 
+/* ============================ PROTOTYPES ============================== */
+
+int vector_total(Vector *v);
+void vector_init(Vector *v);
+void vector_add(Vector *v, void *item);
+void vector_set(Vector *v, int index, void *item);
+void vector_delete(Vector *v, int index);
+void *vector_get(Vector *v, int index);
+void vector_free(Vector *v);
+
 static void vector_resize(Vector *v, int capacity);
+
+/* ============================ FUNCTIONS ============================== */
 
 void vector_init(Vector *v)
 {
@@ -17,24 +29,11 @@ int vector_total(Vector *v)
     return v->total;
 }
 
-static void vector_resize(Vector *v, int capacity)
-{
-    if (capacity == 0)
-    {
-        return;
-    }
-    void **items = realloc(v->items, sizeof(void *) * capacity);
-    if (items)
-    {
-        v->items = items;
-        v->capacity = capacity;
-    }
-}
-
 void vector_add(Vector *v, void *item)
 {
     if (v->capacity == v->total)
         vector_resize(v, v->capacity * 2);
+
     v->items[v->total++] = item;
 }
 
@@ -48,6 +47,7 @@ void *vector_get(Vector *v, int index)
 {
     if (index >= 0 && index < v->total)
         return v->items[index];
+
     return NULL;
 }
 
@@ -73,4 +73,19 @@ void vector_delete(Vector *v, int index)
 void vector_free(Vector *v)
 {
     free(v->items);
+}
+
+/* ============================ STATIC FUNCTIONS ============================== */
+
+static void vector_resize(Vector *v, int capacity)
+{
+    if (capacity == 0)
+        return;
+
+    void **items = realloc(v->items, sizeof(void *) * capacity);
+    if (items)
+    {
+        v->items = items;
+        v->capacity = capacity;
+    }
 }

@@ -26,13 +26,18 @@
 
 #define ENTROPY_SIZE 5000
 
+/* ============================ PROTOTYPES ============================== */
+
 int intresting_files_scan(File_Info *fi, All_Results *ar, Args *cmdline);
+
 static int extension_checker(File_Info *fi, All_Results *ar, Args *cmdline);
 static int file_name_checker(File_Info *fi, All_Results *ar, Args *cmdline);
 static bool check_for_encryption_key(File_Info *fi, All_Results *ar, Args *cmdline);
 static int check_for_writable_shared_object(File_Info *fi, All_Results *ar, Args *cmdline);
 static double caclulate_file_entropy(char *file_location);
 static int search_conf_for_pass(File_Info *fi, All_Results *ar, Args *cmdline);
+
+/* ============================ FUNCTIONS ============================== */
 
 /**
  * Performs all of the intersesting file scans on a given file 
@@ -44,11 +49,12 @@ static int search_conf_for_pass(File_Info *fi, All_Results *ar, Args *cmdline);
 int intresting_files_scan(File_Info *fi, All_Results *ar, Args *cmdline)
 {
     int findings = 0;
-
     findings += extension_checker(fi, ar, cmdline);
     findings += file_name_checker(fi, ar, cmdline);
     return findings;
 }
+
+/* ============================ STATIC FUNCTIONS ============================== */
 
 /**
  * This scan kicks off other scans based of the files extension 
@@ -70,13 +76,7 @@ static int extension_checker(File_Info *fi, All_Results *ar, Args *cmdline)
     case 'b':
         if (strcmp(fi->extension, "bk") == 0)
         {
-            int id = 254;
-            char *name = "Found backup file";
-            Result *new_result = create_new_issue();
-            set_id_and_desc(id, new_result);
-            set_issue_location(fi->location, new_result);
-            set_issue_name(name, new_result);
-            add_new_result_info(new_result, ar, cmdline);
+            add_issue(INFO, 46, fi->location, ar, cmdline, "Found possible backup file", "");
             return 1;
         }
         break;
@@ -86,35 +86,17 @@ static int extension_checker(File_Info *fi, All_Results *ar, Args *cmdline)
 
         else if (strcmp(fi->extension, "conf") == 0)
             findings += search_conf_for_pass(fi, ar, cmdline);
+
         break;
     case 'd':
         if (strcmp(fi->extension, "des") == 0)
             findings += (check_for_encryption_key(fi, ar, cmdline) == true) ? 1 : 0;
-        break;
-    case 'g':
-        // .gxk
-        break;
-    case 'h':
-        // .hdmp
-        break;
-    case 'j':
-        // .jks
+
         break;
     case 'k':
-        // .key
         if (strcmp(fi->extension, "key") == 0)
             findings += (check_for_encryption_key(fi, ar, cmdline) == true) ? 1 : 0;
-        break;
-    case 'm':
-        // .mbr
-        // .mmf
-        // .msd
-        // .map
-        // .mysql
-        break;
-    case 'o':
-        // .old
-        // .afx
+
         break;
     case 'p':
         if (strcmp(fi->extension, "ini") == 0)
@@ -139,23 +121,15 @@ static int extension_checker(File_Info *fi, All_Results *ar, Args *cmdline)
     case 'r':
         if (strcmp(fi->extension, "rsa") == 0)
             findings += (check_for_encryption_key(fi, ar, cmdline) == true) ? 1 : 0;
+
         break;
     case 's':
-        // .secret
-        // .sec
-        // .sig
-        // .sql
-        // .sqlite
         if (strcmp(fi->extension, "secret") == 0)
             findings += (check_for_encryption_key(fi, ar, cmdline) == true) ? 1 : 0;
 
         else if (strcmp(fi->extension, "so") == 0)
             findings += check_for_writable_shared_object(fi, ar, cmdline);
 
-        break;
-    case 'v':
-        // .vpn
-        // .openvpn
         break;
     }
     return findings;
@@ -176,25 +150,19 @@ static int file_name_checker(File_Info *fi, All_Results *ar, Args *cmdline)
     {
     case 'c':
         if (strcasestr(fi->name, "core") != NULL)
-        {
             findings += core_dump_scan(fi, ar, cmdline);
-        }
         break;
     case 'i':
         if (strcasestr(fi->name, "id_rsa") != NULL && strcmp(fi->extension, "pub") != 0)
         {
             if (check_for_encryption_key(fi, ar, cmdline))
-            {
                 findings++;
-            }
             break;
         }
         if (strcasestr(fi->name, "id_dsa") != NULL && strcmp(fi->extension, "pub") != 0)
         {
             if (check_for_encryption_key(fi, ar, cmdline))
-            {
                 findings++;
-            }
             break;
         }
         break;
@@ -215,60 +183,35 @@ static int file_name_checker(File_Info *fi, All_Results *ar, Args *cmdline)
 static bool check_for_encryption_key(File_Info *fi, All_Results *ar, Args *cmdline)
 {
     float entropy;
-    int id;
 
     if (strstr(fi->location, "/test/") || strstr(fi->location, "/tests/") || strstr(fi->location, "/testing/"))
-    {
         return false;
-    }
 
     if (strstr(fi->location, "integration") && strstr(fi->location, "test"))
-    {
         return false;
-    }
+
+    // Data probably too big to be a key
     if (fi->stat->st_size > 100000 || fi->stat->st_size < 100)
-    {
-        // Data probably too big to be a key
         return false;
-    }
 
     if (access(fi->location, R_OK) != 0)
     {
-    // Log issuse as info
     NONREADABLE:
-        id = 46;
-        char *name = "None readable potentianal encryption key";
-        Result *new_result = create_new_issue();
-        set_id_and_desc(id, new_result);
-        set_issue_location(fi->location, new_result);
-        set_issue_name(name, new_result);
-        add_new_result_info(new_result, ar, cmdline);
+        add_issue(INFO, 46, fi->location, ar, cmdline, "None readable potential encryption key", "");
         return true;
     }
 
     entropy = caclulate_file_entropy(fi->location);
     if (entropy > 7.0)
-    {
         return false;
-    }
 
     if (entropy == -1)
-    {
         DEBUG_PRINT("Failed to calculate entropy for file at location -> %s\n", fi->location);
-    }
 
     if (getuid() == 0 && fi->stat->st_uid == 0)
-    {
         goto NONREADABLE;
-    }
 
-    id = 45;
-    char *name = "Heuristic identified file as private key";
-    Result *new_result = create_new_issue();
-    set_id_and_desc(id, new_result);
-    set_issue_location(fi->location, new_result);
-    set_issue_name(name, new_result);
-    add_new_result_high(new_result, ar, cmdline);
+    add_issue(HIGH, 45, fi->location, ar, cmdline, "Low entropy file that could be a private key", "");
     return true;
 }
 
@@ -302,9 +245,7 @@ static double caclulate_file_entropy(char *file_location)
     {
         current_fget = fgetc(f);
         if (current_fget == EOF)
-        {
             break;
-        }
         str[len] = (unsigned char)current_fget;
     }
 
@@ -312,13 +253,10 @@ static double caclulate_file_entropy(char *file_location)
 
     // Check for integer underflow
     if (len == 0)
-    {
         str[0] = '\0';
-    }
+
     else
-    {
         str[--len] = '\0';
-    }
 
     hist = (unsigned int *)calloc(len, sizeof(int));
     if (hist == NULL)
@@ -345,14 +283,11 @@ static double caclulate_file_entropy(char *file_location)
 
     // Calculate entropy
     for (i = 0; i < histlen; i++)
-    {
         entropy -= (double)hist[i] / len * log2((double)hist[i] / len);
-    }
 
     if (hist != NULL)
-    {
         free(hist);
-    }
+
     return entropy;
 }
 
@@ -380,9 +315,8 @@ static int search_conf_for_pass(File_Info *fi, All_Results *ar, Args *cmdline)
     while (fgets(line, MAXSIZE, file))
     {
         if (line[0] == '#')
-        {
             continue;
-        }
+
         if (
             (strcasestr(line, "password=") != NULL) ||
             (strcasestr(line, "passwd") != NULL) ||
@@ -390,13 +324,7 @@ static int search_conf_for_pass(File_Info *fi, All_Results *ar, Args *cmdline)
             (strcasestr(line, "privatekey") != NULL) ||
             (strcasestr(line, "private-key") != NULL))
         {
-            int id = 47;
-            char *name = "Config could contain passwords";
-            Result *new_result = create_new_issue();
-            set_id_and_desc(id, new_result);
-            set_issue_location(fi->location, new_result);
-            set_issue_name(name, new_result);
-            add_new_result_info(new_result, ar, cmdline);
+            add_issue(INFO, 47, fi->location, ar, cmdline, "Config file could contain passwords", "");
             fclose(file);
             return 1;
         }
@@ -417,13 +345,7 @@ static int check_for_writable_shared_object(File_Info *fi, All_Results *ar, Args
 {
     if (has_global_write(fi))
     {
-        int id = 48;
-        char *name = "World writable shared object found";
-        Result *new_result = create_new_issue();
-        set_id_and_desc(id, new_result);
-        set_issue_location(fi->location, new_result);
-        set_issue_name(name, new_result);
-        add_new_result_high(new_result, ar, cmdline);
+        add_issue(HIGH, 48, fi->location, ar, cmdline, "World Writable shared object found", "");
         return 1;
     }
     return 0;

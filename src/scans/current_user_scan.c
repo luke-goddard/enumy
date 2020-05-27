@@ -22,10 +22,16 @@ Basic SSH checks
 #include <stdio.h>
 #include <stdbool.h>
 
+/* ============================ DEFINES ============================== */
+
 #define ONE_LINE false
 #define MULT_LINE true
 
+/* ============================ PROTOTYPES ============================== */
+
 static void execute_command_show_output(char *cmd, char *heading, bool line);
+
+/* ============================ FUNCTIONS ============================== */
 
 /**
  * This function kicks off all of the current user scans 
@@ -44,19 +50,17 @@ void current_user_scan()
     puts("");
 }
 
+/* ============================ STATIC FUNCTIONS ============================== */
+
 static void execute_command_show_output(char *cmd, char *heading, bool line)
 {
     char buf[MAXSIZE];
     FILE *fp = popen(cmd, "r");
 
     if (line == ONE_LINE)
-    {
         print_heading_oneliner(heading);
-    }
     else
-    {
         print_heading(heading);
-    }
 
     if (fp != NULL)
     {

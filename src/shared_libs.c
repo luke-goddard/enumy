@@ -19,13 +19,20 @@
 #include <limits.h>
 #include <ctype.h>
 
+/* ============================ DEFINES ============================== */
+
 #define SHARED_LIBS_CONF "/etc/ld.so.conf.d/"
+
+/* ============================ PROTOTYPES ============================== */
 
 Vector *find_shared_libs();
 bool test_if_standard_shared_object(Vector *shared_libs, char *new_shared_lib);
+void free_shared_libs(Vector *v);
 
 static void walk(char *location, Vector *v);
 static bool read_file(char *location, Vector *v);
+
+/* ============================ FUNCTIONS ============================== */
 
 Vector *find_shared_libs()
 {
@@ -93,11 +100,12 @@ bool test_if_standard_shared_object(Vector *shared_libs, char *new_shared_lib)
 void free_shared_libs(Vector *v)
 {
     for (int i = 0; i < vector_total(v); i++)
-    {
         free(vector_get(v, i));
-    }
+
     free(v);
 }
+
+/* ============================ STATIC FUNCTIONS ============================== */
 
 static void walk(char *location, Vector *v)
 {
@@ -110,9 +118,7 @@ static void walk(char *location, Vector *v)
     dir = opendir(location);
 
     if (dir == NULL)
-    {
         return;
-    }
 
     while ((entry = readdir(dir)) != NULL)
     {
@@ -153,10 +159,10 @@ static bool read_file(char *location, Vector *v)
     {
         char *new_line = malloc(MAXSIZE);
         strncpy(new_line, line, MAXSIZE - 1);
+
         if (strlen(new_line) > 2 && new_line[strlen(new_line) - 1] == '\n')
-        {
             new_line[strlen(new_line) - 1] = '/';
-        }
+
         vector_add(v, new_line);
     }
     fclose(file);

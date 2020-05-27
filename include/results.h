@@ -63,6 +63,7 @@ void print_heading_oneliner(char *s);
 All_Results *initilize_total_results();
 void free_total_results(All_Results *ar);
 
+void add_issue(int severity, int id, char *location, All_Results *ar, Args *cmdline, char *name, char *other);
 Result *create_new_issue();
 void set_id(int issue_id, Result *result_node);
 void set_id_and_desc(int issue_id, Result *result_node);

@@ -21,6 +21,8 @@
 #include <string.h>
 #include <stdbool.h>
 
+/* ============================ STRUCTS ============================== */
+
 typedef struct Walk_Args
 {
     char *walk_path;
@@ -28,30 +30,19 @@ typedef struct Walk_Args
     Args *cmdline;
 } Walk_Args;
 
+/* ============================ GLOBAL VARS ============================== */
+
 pthread_mutex_t FilesScannedMutex;
 int FilesScanned = 0;
 
+/* ============================ PROTOTYPES ============================== */
+
+void start_scan(Ncurses_Layout *layout, All_Results *all_results, Args *args);
+void scan_file_for_issues(Thread_Pool_Args *thread_pool_args);
+
 static void *create_walk_thread(void *args);
 
-/**
- * This is the entry point for the file_system scans. This thread
- * will walk the entire file system and then test each file against
- * tests.
- * @param args This is a pointer the Walk_Args struct
- */
-static void *create_walk_thread(void *args)
-{
-    Walk_Args *arguments = (Walk_Args *)args;
-    All_Results *all_results = arguments->all_results;
-    char *walk_path = arguments->walk_path;
-    Args *cmdline = arguments->cmdline;
-
-    cmdline->fs_threadpool = thpool_init(cmdline->fs_threads);
-
-    walk_file_system(walk_path, all_results, cmdline);
-    thpool_destroy(cmdline->fs_threadpool);
-    return NULL;
-}
+/* ============================ FUNCTIONS ============================== */
 
 /** 
  * This kicks of all the scans for the current file found by walking the file system in a seperate thread 
@@ -156,4 +147,26 @@ void start_scan(Ncurses_Layout *layout, All_Results *all_results, Args *args)
     free_total_results(all_results);
     free_shared_libs(args->valid_shared_libs);
     update_bars(all_results, layout);
+}
+
+/* ============================ STATIC FUNCTIONS ============================== */
+
+/**
+ * This is the entry point for the file_system scans. This thread
+ * will walk the entire file system and then test each file against
+ * tests.
+ * @param args This is a pointer the Walk_Args struct
+ */
+static void *create_walk_thread(void *args)
+{
+    Walk_Args *arguments = (Walk_Args *)args;
+    All_Results *all_results = arguments->all_results;
+    char *walk_path = arguments->walk_path;
+    Args *cmdline = arguments->cmdline;
+
+    cmdline->fs_threadpool = thpool_init(cmdline->fs_threads);
+
+    walk_file_system(walk_path, all_results, cmdline);
+    thpool_destroy(cmdline->fs_threadpool);
+    return NULL;
 }

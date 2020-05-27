@@ -5,7 +5,7 @@
 #include "file_system.h"
 #include "main.h"
 
-extern char *KNOW_GOOD_SUID[];
+/* ============================ PROTOTYPES ============================== */
 
 void start_scan(Ncurses_Layout *layout, All_Results *results, Args *args);
 void scan_file_for_issues(Thread_Pool_Args *thread_pool_args);
@@ -21,5 +21,3 @@ void sys_scan(All_Results *ar, Args *cmdline);
 void lotl_scan(File_Info *fi, All_Results *ar, Args *cmdline);
 void current_user_scan();
 void sshd_conf_scan();
-
-// void proc_scan(All_Results *ar, Args *cmdline);

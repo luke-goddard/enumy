@@ -24,6 +24,8 @@
 #define MED 2
 #define HIGH 3
 
+/* ============================ PROTOTYPES ============================== */
+
 void lotl_scan(File_Info *fi, All_Results *ar, Args *cmdline);
 
 static void search_implementation(int tool_type, File_Info *fi, All_Results *ar, Args *cmdline);
@@ -39,6 +41,8 @@ static void report_file_read(File_Info *fi, All_Results *ar, Args *cmdline);
 static void report_file_write(File_Info *fi, All_Results *ar, Args *cmdline);
 static void report_lib_load(File_Info *fi, All_Results *ar, Args *cmdline);
 static void report_file_download(File_Info *fi, All_Results *ar, Args *cmdline);
+
+/* ============================ CONSTANTS ============================== */
 
 /* Build tools should not be found on production environments */
 const char *BuildTools[] = {
@@ -123,6 +127,8 @@ void (*ReportFuncPtrs[TOTAL_CATEGORY_COUNT])() = {
     report_buildtools, report_shell, report_reverse_shell, report_bind_shell, report_non_interactive_bind_shell,
     report_file_upload, report_file_read, report_file_write, report_lib_load, report_file_download};
 
+/* ============================ FUNCTIONS ============================== */
+
 /**
  * Entrypoint to the living off the land scan
  * @param fi This is the current file that is being scaned 
@@ -148,6 +154,8 @@ void lotl_scan(File_Info *fi, All_Results *ar, Args *cmdline)
     search_implementation(FILE_READ, fi, ar, cmdline);
     search_implementation(LIB_LOAD, fi, ar, cmdline);
 }
+
+/* ============================ STATIC FUNCTIONS ============================== */
 
 /**
  * Finds the consts char * array realated to the current scan and then reports
@@ -225,52 +233,52 @@ static void search_implementation(int tool_type, File_Info *fi, All_Results *ar,
     }
 }
 
-void report_buildtools(File_Info *fi, All_Results *ar, Args *cmdline)
+static void report_buildtools(File_Info *fi, All_Results *ar, Args *cmdline)
 {
     report_issue(255, MED, "Development tool found", fi, ar, cmdline);
 }
 
-void report_shell(File_Info *fi, All_Results *ar, Args *cmdline)
+static void report_shell(File_Info *fi, All_Results *ar, Args *cmdline)
 {
     report_issue(256, LOW, "Executable that can breakout of restricted shells found", fi, ar, cmdline);
 }
 
-void report_reverse_shell(File_Info *fi, All_Results *ar, Args *cmdline)
+static void report_reverse_shell(File_Info *fi, All_Results *ar, Args *cmdline)
 {
     report_issue(257, MED, "Executable capable of spawning reverse shells found", fi, ar, cmdline);
 }
 
-void report_bind_shell(File_Info *fi, All_Results *ar, Args *cmdline)
+static void report_bind_shell(File_Info *fi, All_Results *ar, Args *cmdline)
 {
     report_issue(258, MED, "Executable capable of spawning bind shells found", fi, ar, cmdline);
 }
 
-void report_non_interactive_bind_shell(File_Info *fi, All_Results *ar, Args *cmdline)
+static void report_non_interactive_bind_shell(File_Info *fi, All_Results *ar, Args *cmdline)
 {
     report_issue(259, MED, "Executable capable of non interactive bind shells found", fi, ar, cmdline);
 }
 
-void report_file_upload(File_Info *fi, All_Results *ar, Args *cmdline)
+static void report_file_upload(File_Info *fi, All_Results *ar, Args *cmdline)
 {
     report_issue(260, LOW, "Executable capable of exfiltrating files off the network found", fi, ar, cmdline);
 }
 
-void report_file_read(File_Info *fi, All_Results *ar, Args *cmdline)
+static void report_file_read(File_Info *fi, All_Results *ar, Args *cmdline)
 {
     report_issue(261, HIGH, "Executable capable of reading arbitrary files as root found", fi, ar, cmdline);
 }
 
-void report_file_write(File_Info *fi, All_Results *ar, Args *cmdline)
+static void report_file_write(File_Info *fi, All_Results *ar, Args *cmdline)
 {
     report_issue(262, HIGH, "Executable capable of writing arbitrary files as root found", fi, ar, cmdline);
 }
 
-void report_lib_load(File_Info *fi, All_Results *ar, Args *cmdline)
+static void report_lib_load(File_Info *fi, All_Results *ar, Args *cmdline)
 {
     report_issue(263, HIGH, "Executable capable of loading shared libaries as root found", fi, ar, cmdline);
 }
 
-void report_file_download(File_Info *fi, All_Results *ar, Args *cmdline)
+static void report_file_download(File_Info *fi, All_Results *ar, Args *cmdline)
 {
     report_issue(264, LOW, "Executable capable of downloading found", fi, ar, cmdline);
 }

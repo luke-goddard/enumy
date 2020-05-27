@@ -30,7 +30,11 @@
 #include <stdlib.h>
 #include <sys/mman.h>
 
+/* ============================ PROTOTYPES ============================== */
+
 int core_dump_scan(File_Info *fi, All_Results *ar, Args *cmdline);
+
+static void add_issue_wrapper(int id, File_Info *fi, int severity, All_Results *ar, Args *cmdline, char *issue_name);
 
 /**
  * Given a file, this will test to see if the file is an elf and it's
@@ -47,18 +51,14 @@ int core_dump_scan(File_Info *fi, All_Results *ar, Args *cmdline)
     int findings = 0;
 
     if (strcasestr(fi->name, "core") == NULL)
-    {
         return findings;
-    }
 
     int arch = has_elf_magic_bytes(fi);
     if (
         (arch == 0) ||
         (arch == X86 && sizeof(char *) != 4) ||
         (arch == X64 && sizeof(char *) != 8))
-    {
         return findings;
-    }
 
     Elf_File *elf = parse_elf(fi);
     if (elf == NULL)
@@ -73,34 +73,23 @@ int core_dump_scan(File_Info *fi, All_Results *ar, Args *cmdline)
         findings++;
 
         if (has_global_read(fi))
-        {
-            char *name = "Found a world readable core dump file";
-            Result *new_result = create_new_issue();
-            set_id_and_desc(43, new_result);
-            set_issue_location(fi->location, new_result);
-            set_issue_name(name, new_result);
-            add_new_result_high(new_result, ar, cmdline);
-        }
-        if (fi->stat->st_uid != 0)
-        {
-            char *name = "Found a core dump, owner is not root";
-            Result *new_result = create_new_issue();
-            set_id_and_desc(44, new_result);
-            set_issue_location(fi->location, new_result);
-            set_issue_name(name, new_result);
-            add_new_result_low(new_result, ar, cmdline);
-        }
+            add_issue_wrapper(44, fi, HIGH, ar, cmdline, "Found a world readable coredump file");
+
         if (can_read(fi))
-        {
-            char *name = "Found a readable core dump file";
-            Result *new_result = create_new_issue();
-            set_id_and_desc(44, new_result);
-            set_issue_location(fi->location, new_result);
-            set_issue_name(name, new_result);
-            add_new_result_high(new_result, ar, cmdline);
-        }
+            add_issue_wrapper(44, fi, HIGH, ar, cmdline, "Found a readable core dump file");
+
+        if (fi->stat->st_uid != 0)
+            add_issue_wrapper(44, fi, LOW, ar, cmdline, "Found a coredump file, root is not the owner");
     }
 
     close_elf(elf, fi);
     return findings;
+}
+
+/**
+ * Wrapper function to raise the issue
+ */
+static void add_issue_wrapper(int id, File_Info *fi, int severity, All_Results *ar, Args *cmdline, char *issue_name)
+{
+    add_issue(severity, id, fi->location, ar, cmdline, issue_name, "");
 }

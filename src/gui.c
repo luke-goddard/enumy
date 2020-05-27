@@ -16,6 +16,8 @@
 #include <math.h>
 #include <stdio.h>
 
+/* ============================ DEFINES ============================== */
+
 #define UPDATE_SECS 1
 #define HORIZONTAL_BORDER 61
 #define VERTICAL_BORDER 124
@@ -26,7 +28,17 @@
 #define LOW_COLOUR_SCHEME 6
 #define INFO_COLOUR_SCHEME 5
 
+/* ============================ STRUCTS ============================== */
+
 typedef struct Ncurses_Layout Ncurses_Layout;
+
+typedef struct UpdateGuiArgs
+{
+    All_Results *all_results;
+    Ncurses_Layout *layout;
+} UpdateGuiArgs;
+
+/* ============================ PROTOTYPES ============================== */
 
 void update_table(All_Results *all_results, Ncurses_Layout *layout);
 
@@ -45,11 +57,7 @@ static void *update_gui(void *update_gui_args);
 static void *blink_logo_eyes(void *logo_window);
 static Result *get_selected_linked_list(All_Results *all_results, Ncurses_Layout *layout);
 
-typedef struct UpdateGuiArgs
-{
-    All_Results *all_results;
-    Ncurses_Layout *layout;
-} UpdateGuiArgs;
+/* ============================ FUNCTIONS ============================== */
 
 /**
  * This function takes a pointer to a struct containing the window layouts 

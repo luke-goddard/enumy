@@ -18,6 +18,8 @@
 #include "results.h"
 #include "debug.h"
 
+/* ============================ DEFINES ============================== */
+
 #define KEY_J 106
 #define KEY_K 107
 #define KEY_SHOW_HIGH 104
@@ -28,114 +30,28 @@
 #define KEY_DEL_ALL_ID 68
 #define KEY_QUIT 113
 
+/* ============================ STRUCTS ============================== */
+
 typedef struct UserInputThreadArgs
 {
     Ncurses_Layout *layout;
     All_Results *all_results;
 } UserInputThreadArgs;
 
+/* ============================ GLOBAL VARS ============================== */
+
 bool DEBUG = false;
 bool DEBUG_EXTRA = false;
 
-void sigint_handler(int sig)
-{
-    if (sig == SIGINT)
-    {
-        endwin();
-        exit(0);
-    }
-}
+/* ============================ PROTOTYPES ============================== */
 
-void banner()
-{
-    puts(" ▄█▀─▄▄▄▄▄▄▄─▀█▄  _____  				 ");
-    puts(" ▀█████████████▀ |   __|___ _ _ _____ _ _ ");
-    puts("     █▄███▄█     |   __|   | | |     | | |");
-    puts("      █████      |_____|_|_|___|_|_|_|_  |");
-    puts("      █▀█▀█                          |___|");
-    puts("");
-    puts(" https://github.com/luke-goddard/enumy");
-}
+static void *handle_user_input(void *user_input_args);
+static void show_runtime_args(Args *args);
+static void sigint_handler(int sig);
+static void banner();
+static void help();
 
-void help()
-{
-    puts("");
-    puts("------------------------------------------");
-    puts("");
-    puts("Enumy - Used to enumerate the target");
-    puts("the target environment and look for common");
-    puts("security vulnerabilities and hostspots");
-    puts("");
-    puts(" -o <loc>     Save results to location");
-    puts(" -i <loc>     Ignore files in this directory (usefull for network shares)");
-    puts(" -w <loc>     Only walk files in this directory (usefull for devlopment)");
-    puts(" -t <num>     Threads (default 4)");
-    puts(" -f           Run full scans");
-    puts(" -s           Show missing shared libaries");
-    puts(" -d <1|2>     Debug mode (1 low, 2 high)");
-    puts(" -n           Enabled ncurses");
-    puts(" -h           Show help");
-    exit(0);
-}
-
-void *handle_user_input(void *user_input_args)
-{
-    UserInputThreadArgs *args = (UserInputThreadArgs *)user_input_args;
-    All_Results *all_results = args->all_results;
-    Ncurses_Layout *layout = args->layout;
-    char input;
-
-    while ((input = getch()) != KEY_QUIT)
-    {
-        switch (input)
-        {
-        case KEY_J:
-            layout->cursor_position++;
-            break;
-
-        case KEY_K:
-            layout->cursor_position--;
-            break;
-
-        case KEY_SHOW_HIGH:
-            layout->current_category = HIGH;
-            update_table(all_results, layout);
-            update_bars(all_results, layout);
-            break;
-
-        case KEY_SHOW_MEDIUM:
-            layout->current_category = MEDIUM;
-            update_table(all_results, layout);
-            update_bars(all_results, layout);
-            break;
-
-        case KEY_SHOW_LOW:
-            layout->current_category = LOW;
-            update_table(all_results, layout);
-            update_bars(all_results, layout);
-            break;
-
-        case KEY_SHOW_INFO:
-            layout->current_category = INFO;
-            update_table(all_results, layout);
-            update_bars(all_results, layout);
-            break;
-        }
-    }
-    kill(getpid(), SIGINT);
-    return NULL;
-}
-
-void show_runtime_args(Args *args)
-{
-    printf("Save Location   -> %s\n", args->save_location);
-    printf("Ignore Dir      -> %s\n", args->ignore_scan_dir);
-    printf("Walk Dir        -> %s\n", args->walk_dir);
-    printf("Full Scan       -> %s\n", args->enabled_full_scans ? "true" : "false");
-    printf("Ncurses         -> %s\n", args->enabled_ncurses ? "true" : "false");
-    printf("Missing *.so    -> %s\n", args->enabled_missing_so ? "true" : "false");
-    printf("Threads         -> %i\n", args->fs_threads);
-}
+/* ============================ FUNCTIONS ============================== */
 
 int main(int argc, char *argv[])
 {
@@ -216,9 +132,7 @@ int main(int argc, char *argv[])
         case 'd':
             DEBUG = true;
             if (atoi(optarg) == 2)
-            {
                 DEBUG_EXTRA = true;
-            }
             break;
 
         case 's':
@@ -249,12 +163,114 @@ int main(int argc, char *argv[])
     {
         banner();
         printf("\n\n");
+
         if (DEBUG)
-        {
             show_runtime_args(args);
-        }
+
         start_scan(&nlayout, all_results, args);
     }
     free(args);
     return 0;
+}
+
+/* ============================ STATIC FUNCTIONS ============================== */
+
+static void sigint_handler(int sig)
+{
+    if (sig == SIGINT)
+    {
+        endwin();
+        exit(0);
+    }
+}
+
+static void banner()
+{
+    puts(" ▄█▀─▄▄▄▄▄▄▄─▀█▄  _____  				 ");
+    puts(" ▀█████████████▀ |   __|___ _ _ _____ _ _ ");
+    puts("     █▄███▄█     |   __|   | | |     | | |");
+    puts("      █████      |_____|_|_|___|_|_|_|_  |");
+    puts("      █▀█▀█                          |___|");
+    puts("");
+    puts(" https://github.com/luke-goddard/enumy");
+}
+
+static void help()
+{
+    puts("");
+    puts("------------------------------------------");
+    puts("");
+    puts("Enumy - Used to enumerate the target");
+    puts("the target environment and look for common");
+    puts("security vulnerabilities and hostspots");
+    puts("");
+    puts(" -o <loc>     Save results to location");
+    puts(" -i <loc>     Ignore files in this directory (usefull for network shares)");
+    puts(" -w <loc>     Only walk files in this directory (usefull for devlopment)");
+    puts(" -t <num>     Threads (default 4)");
+    puts(" -f           Run full scans");
+    puts(" -s           Show missing shared libaries");
+    puts(" -d <1|2>     Debug mode (1 low, 2 high)");
+    puts(" -n           Enabled ncurses");
+    puts(" -h           Show help");
+    exit(0);
+}
+
+static void *handle_user_input(void *user_input_args)
+{
+    UserInputThreadArgs *args = (UserInputThreadArgs *)user_input_args;
+    All_Results *all_results = args->all_results;
+    Ncurses_Layout *layout = args->layout;
+    char input;
+
+    while ((input = getch()) != KEY_QUIT)
+    {
+        switch (input)
+        {
+        case KEY_J:
+            layout->cursor_position++;
+            break;
+
+        case KEY_K:
+            layout->cursor_position--;
+            break;
+
+        case KEY_SHOW_HIGH:
+            layout->current_category = HIGH;
+            update_table(all_results, layout);
+            update_bars(all_results, layout);
+            break;
+
+        case KEY_SHOW_MEDIUM:
+            layout->current_category = MEDIUM;
+            update_table(all_results, layout);
+            update_bars(all_results, layout);
+            break;
+
+        case KEY_SHOW_LOW:
+            layout->current_category = LOW;
+            update_table(all_results, layout);
+            update_bars(all_results, layout);
+            break;
+
+        case KEY_SHOW_INFO:
+            layout->current_category = INFO;
+            update_table(all_results, layout);
+            update_bars(all_results, layout);
+            break;
+        }
+    }
+    kill(getpid(), SIGINT);
+    return NULL;
+}
+
+static void show_runtime_args(Args *args)
+{
+    printf("Save Location   -> %s\n", args->save_location);
+    printf("Ignore Dir      -> %s\n", args->ignore_scan_dir);
+    printf("Walk Dir        -> %s\n", args->walk_dir);
+    printf("Full Scan       -> %s\n", args->enabled_full_scans ? "true" : "false");
+    printf("Ncurses         -> %s\n", args->enabled_ncurses ? "true" : "false");
+    printf("Missing *.so    -> %s\n", args->enabled_missing_so ? "true" : "false");
+    printf("Threads         -> %i\n", args->fs_threads);
 }

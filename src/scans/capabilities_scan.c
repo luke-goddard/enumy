@@ -1,17 +1,3 @@
-#include "results.h"
-#include "file_system.h"
-#include "main.h"
-
-#include <stdio.h>
-#include <string.h>
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <fcntl.h>
-#include <sys/capability.h>
-#include <unistd.h>
-#include <stdlib.h>
-#include <errno.h>
-
 /*
     Capabilities allow the kernel to give a file elevated permissions while performing a task that
     would require a high privilaged UID. This means that we could abuse these files if found and 
@@ -30,9 +16,24 @@
     Capabilities are a per-thread attribute.
 */
 
+#include "results.h"
+#include "file_system.h"
+#include "main.h"
+
+#include <stdio.h>
+#include <string.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+#include <sys/capability.h>
+#include <unistd.h>
+#include <stdlib.h>
+#include <errno.h>
+
+/* ============================ PROTOTYPES ============================== */
+
 static int check_cap(cap_t caps_for_file, cap_value_t search);
-static void add_new_issue(int issue_type, int id, File_Info *fi, All_Results *ar, Args *cmdline, char *issue_name, cap_value_t cap_value);
-static void set_other_info_to_cap_flag(cap_flag_t flag, Result *new_result);
+static void add_issue_wrapper(int issue_type, int id, File_Info *fi, All_Results *ar, Args *cmdline, char *issue_name);
 static void scan_cap(int issue_serverity, cap_t current_caps, File_Info *fi, All_Results *ar, Args *cmdline, char *issue_name, cap_value_t cap_to_find);
 
 /**
@@ -108,6 +109,8 @@ int capabilities_scan(File_Info *fi, All_Results *ar, Args *cmdline)
     return findings;
 }
 
+/* ============================ STATIC FUNCTIONS ============================== */
+
 /**
  * Wrapper function to check if the current file has a certain Linux capablity attached to it
  * @param issue_serverity If found how important is this linux capablity HIGH, MEDIUM, LOW
@@ -122,7 +125,7 @@ static void scan_cap(int issue_serverity, cap_t current_caps, File_Info *fi, All
     int cap_value = check_cap(current_caps, cap_to_find);
 
     if (cap_value)
-        add_new_issue(issue_serverity, 0, fi, ar, cmdline, issue_name, cap_value);
+        add_issue_wrapper(issue_serverity, 0, fi, ar, cmdline, issue_name);
 }
 
 /**
@@ -134,29 +137,9 @@ static void scan_cap(int issue_serverity, cap_t current_caps, File_Info *fi, All
  * @param issue_name If found what description should we give the issue
  * @param cap_value This is the value of the capablity found
  */
-static void add_new_issue(int issue_type, int id, File_Info *fi, All_Results *ar, Args *cmdline, char *issue_name, cap_value_t cap_value)
+static void add_issue_wrapper(int issue_type, int id, File_Info *fi, All_Results *ar, Args *cmdline, char *issue_name)
 {
-    Result *new_result = create_new_issue();
-    set_id_and_desc(id, new_result);
-    set_issue_location(fi->location, new_result);
-    set_issue_name(issue_name, new_result);
-    set_other_info_to_cap_flag(cap_value, new_result);
-
-    switch (issue_type)
-    {
-    case HIGH:
-        add_new_result_high(new_result, ar, cmdline);
-        break;
-    case MEDIUM:
-        add_new_result_medium(new_result, ar, cmdline);
-        break;
-    case LOW:
-        add_new_result_low(new_result, ar, cmdline);
-        break;
-    case INFO:
-        add_new_result_info(new_result, ar, cmdline);
-        break;
-    }
+    add_issue(issue_type, id, fi->location, ar, cmdline, issue_name, "");
 }
 
 /**
@@ -194,21 +177,4 @@ static int check_cap(cap_t caps_for_file, cap_value_t search)
         return CAP_EFFECTIVE;
 
     return 0;
-}
-
-/**
- * Just sets the issues other info value to the string representation of the flag
- * @param flag CAP_PERMITED | CAP_INHERITABLE | CAP_EFFECTIVE
- * @param new_result the location of the new result
- */
-static void set_other_info_to_cap_flag(cap_flag_t flag, Result *new_result)
-{
-    if (flag == CAP_PERMITTED)
-        set_other_info("Capabilities flag set to -> CAP_PERMITTED", new_result);
-
-    else if (flag == CAP_INHERITABLE)
-        set_other_info("Capabilities flag set to -> CAP_INHERITIABLE", new_result);
-
-    else if (flag == CAP_EFFECTIVE)
-        set_other_info("Capabilities flag set to -> CAP_EFFECTIVE", new_result);
 }

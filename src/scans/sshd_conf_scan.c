@@ -13,7 +13,13 @@
 #include "results.h"
 #include "vector.h"
 
+/* ============================ DEFINES ============================== */
+
 #define SSHD_CONF_LOC "/etc/ssh/sshd_config"
+
+/* ============================ PROTOTYPES ============================== */
+
+void sshd_conf_scan(All_Results *all_results, Args *cmdline);
 
 static int search_vector(Vector *v, char *key);
 static void strip_trailing_comments(char *line);
@@ -27,6 +33,8 @@ static void permit_root_login_scan(All_Results *ar, Args *cmdline, Vector *v);
 static void x11_forwarding_scan(All_Results *ar, Args *cmdline, Vector *v);
 static bool read_config_file(Vector *v, char *location);
 
+/* ============================ FUNCTIONS ============================== */
+
 /**
  * This scan is used to find misconfiguration inside of the SSHD configuration files. Example issues 
  * could be that login without a password is allowed
@@ -38,7 +46,8 @@ void sshd_conf_scan(All_Results *all_results, Args *cmdline)
     Vector lines;
     vector_init(&lines);
 
-    if (!read_config_file(&lines, SSHD_CONF_LOC)) {
+    if (!read_config_file(&lines, SSHD_CONF_LOC))
+    {
         DEBUG_PRINT("%s", "Skipping sshd config test\n");
         return;
     }
@@ -51,6 +60,8 @@ void sshd_conf_scan(All_Results *all_results, Args *cmdline)
     x11_forwarding_scan(all_results, cmdline, &lines);
 }
 
+/* ============================ STATIC FUNCTIONS ============================== */
+
 /**
  * This scan is used to check if the PermitEmptyPassword is enabled in the sshd config 
  * When password authentication is allowed, it specifies whether the server allows login to accounts with empty password strings.
@@ -62,11 +73,11 @@ static void permit_empty_password_scan(All_Results *ar, Args *cmdline, Vector *v
 {
     char *name = "SSHD Access via empty password is allowed";
     int index = search_vector(v, "PermitEmptyPassword");
-    if (index == -1) {
+    if (index == -1)
         return;
-    }
 
-    if (strstr((char *)vector_get(v, index), " yes") != NULL) {
+    if (strstr((char *)vector_get(v, index), " yes") != NULL)
+    {
         int id = 265;
         Result *new_result = create_new_issue();
         set_id_and_desc(id, new_result);
@@ -89,7 +100,8 @@ static void banner_enabled_scan(All_Results *ar, Args *cmdline, Vector *v)
     char *name = "SSHD No SSH warning banner";
     int index = search_vector(v, "Banner");
 
-    if (index == -1) {
+    if (index == -1)
+    {
         int id = 266;
         Result *new_result = create_new_issue();
         set_id_and_desc(id, new_result);
@@ -99,7 +111,8 @@ static void banner_enabled_scan(All_Results *ar, Args *cmdline, Vector *v)
         add_new_result_low(new_result, ar, cmdline);
         return;
     }
-    if (strstr((char *)vector_get(v, index), " none") != NULL) {
+    if (strstr((char *)vector_get(v, index), " none") != NULL)
+    {
         int id = 266;
         Result *new_result = create_new_issue();
         set_id_and_desc(id, new_result);
@@ -122,10 +135,11 @@ static void host_based_auth_scan(All_Results *ar, Args *cmdline, Vector *v)
     char *name = "SSHD HostBasedAuthentication is enabled";
     int index = search_vector(v, "Banner");
 
-    if (index == -1) {
+    if (index == -1)
         return;
-    }
-    if (strstr((char *)vector_get(v, index), " yes") != NULL) {
+
+    if (strstr((char *)vector_get(v, index), " yes") != NULL)
+    {
         int id = 267;
         Result *new_result = create_new_issue();
         set_id_and_desc(id, new_result);
@@ -151,10 +165,11 @@ static void gss_api_auth_scan(All_Results *ar, Args *cmdline, Vector *v)
     char *name = "SSHD GSSAPIAuthentication is enabled";
     int index = search_vector(v, "GSSAPIAuthentication");
 
-    if (index == -1) {
+    if (index == -1)
         return;
-    }
-    if (strstr((char *)vector_get(v, index), " yes") != NULL) {
+
+    if (strstr((char *)vector_get(v, index), " yes") != NULL)
+    {
         int id = 268;
         Result *new_result = create_new_issue();
         set_id_and_desc(id, new_result);
@@ -180,7 +195,8 @@ static void permit_root_login_scan(All_Results *ar, Args *cmdline, Vector *v)
     int id = 269;
     int index = search_vector(v, "PermitRootLogin");
 
-    if (index == -1) {
+    if (index == -1)
+    {
         char *name = "SSHD PermitRootLogin is set to prohibit-password";
         Result *new_result = create_new_issue();
         set_id_and_desc(id, new_result);
@@ -189,7 +205,8 @@ static void permit_root_login_scan(All_Results *ar, Args *cmdline, Vector *v)
         add_new_result_medium(new_result, ar, cmdline);
         return;
     }
-    if (strstr((char *)vector_get(v, index), " no") != NULL) {
+    if (strstr((char *)vector_get(v, index), " no") != NULL)
+    {
         char *name = "SSHD PermitRootLogin configurition could be more secure";
         Result *new_result = create_new_issue();
         set_id_and_desc(id, new_result);
@@ -212,10 +229,11 @@ static void x11_forwarding_scan(All_Results *ar, Args *cmdline, Vector *v)
     int id = 270;
     int index = search_vector(v, "X11Forwarding");
 
-    if (index == -1) {
+    if (index == -1)
         return;
-    }
-    if (strstr((char *)vector_get(v, index), " yes") != NULL) {
+
+    if (strstr((char *)vector_get(v, index), " yes") != NULL)
+    {
         char *name = "SSHD X11Forwarding is enabled";
         Result *new_result = create_new_issue();
         set_id_and_desc(id, new_result);
@@ -238,24 +256,29 @@ static bool read_config_file(Vector *v, char *location)
     char buffer[MAXSIZE];
     char *buffer_cpy;
 
-    if (access(location, F_OK) == -1) {
+    if (access(location, F_OK) == -1)
+    {
         DEBUG_PRINT("SSHD config file could not be found at location -> %s\n", location);
         return false;
     }
 
     fp = fopen(location, "r");
 
-    if (fp == NULL) {
+    if (fp == NULL)
+    {
         DEBUG_PRINT("SSHD config file exists at location -> %s but is not readable\n", location);
         return false;
     }
 
-    while (fgets(buffer, MAXSIZE - 1, fp)) {
-        if (is_line_commented(buffer) == true) {
+    while (fgets(buffer, MAXSIZE - 1, fp))
+    {
+        if (is_line_commented(buffer) == true)
             continue;
-        }
+
         strip_trailing_comments(buffer);
-        if (strcmp(buffer, "\n") != 0) {
+
+        if (strcmp(buffer, "\n") != 0)
+        {
             buffer_cpy = strdup(buffer);
             vector_add(v, buffer_cpy);
         }
@@ -279,17 +302,19 @@ static bool is_line_commented(char *current_line)
     char ret = '\r';
     char com = '#';
 
-    for (int i = 0; i < len; i++) {
+    for (int i = 0; i < len; i++)
+    {
         current_char = current_line[i];
         if (
             current_char == space ||
             current_char == tab ||
-            current_char == ret) {
+            current_char == ret)
+        {
             continue;
         }
-        if (current_char == com) {
+        if (current_char == com)
             return true;
-        }
+
         return false;
     }
     return true;
@@ -304,9 +329,11 @@ static void strip_trailing_comments(char *line)
     int len = strlen(line);
     char current_character;
 
-    for (int i = 0; i < len; i++) {
+    for (int i = 0; i < len; i++)
+    {
         current_character = line[i];
-        if (current_character == '#') {
+        if (current_character == '#')
+        {
             line[i] = '\0';
             return;
         }
@@ -324,10 +351,10 @@ static int search_vector(Vector *v, char *key)
 {
     int vector_size = vector_total(v);
 
-    for (int i = vector_size - 1; i >= 0; i--) {
-        if (strstr((char *)vector_get(v, i), key) != NULL) {
+    for (int i = vector_size - 1; i >= 0; i--)
+    {
+        if (strstr((char *)vector_get(v, i), key) != NULL)
             return i;
-        }
     }
     return -1;
 }

@@ -1,3 +1,8 @@
+/*
+    The point of this scan is to find out where /proc/sys can be hardened.
+    Examples of this to disable the IPv4 forwarding setting 
+*/
+
 #include "main.h"
 #include "results.h"
 #include "scan.h"
@@ -7,12 +12,11 @@
 #include <stdio.h>
 #include <string.h>
 
-/*
-    The point of this scan is to find out where /proc/sys can be hardened.
-    Examples of this to disable the IPv4 forwarding setting 
-*/
+/* ============================ DEFINES ============================== */
 
 #define BAD_READ 0xDEADBEEF
+
+/* ============================ PROTOTYPES ============================== */
 
 void sys_scan(All_Results *ar, Args *args);
 
@@ -36,6 +40,9 @@ static void check_ipv4_icmp_ignore_bogus_error_response(All_Results *ar, Args *c
 static void check_ipv4_accept_source_route(All_Results *ar, Args *cmdline);
 static void check_randomized_va_space(All_Results *ar, Args *cmdline);
 static void check_ipv4_echo_ignore_broadcasts(All_Results *ar, Args *cmdline);
+static void add_medium_issue(All_Results *ar, Args *cmdline, int id, char *loc, char *issue_name);
+
+/* ============================ FUNCTIONS ============================== */
 
 /**
  * This function kicks of all of the /proc/sys/ scans to see if their 
@@ -64,6 +71,8 @@ void sys_scan(All_Results *ar, Args *cmdline)
     check_randomized_va_space(ar, cmdline);
 }
 
+/* ============================ STATIC FUNCTIONS ============================== */
+
 /**
  * /proc/sys/kernel/kptr_restrict
  * 0: When kptr_restrict is set to 0 (the default) the address is hashed before printing. (This is the equivalent to %p.)
@@ -78,20 +87,8 @@ static void check_kptr_restrict(All_Results *ar, Args *cmdline)
     char *issue_name = "sysctl kptr_restrict disabled";
     int id = 237;
 
-    if (!check_location_exists(loc))
-    {
-        return;
-    }
-
-    if (read_proc_int(loc) != 1)
-    {
-        Result *new_result = create_new_issue();
-        set_id_and_desc(id, new_result);
-        set_issue_location(loc, new_result);
-        set_issue_name(issue_name, new_result);
-        set_other_info("", new_result);
-        add_new_result_medium(new_result, ar, cmdline);
-    }
+    if (check_location_exists(loc) && read_proc_int(loc) != 1)
+        add_medium_issue(ar, cmdline, id, loc, issue_name);
 }
 
 /**
@@ -106,20 +103,8 @@ static void check_namespaces(All_Results *ar, Args *cmdline)
     char *issue_name = "sysctl namespaces enabled";
     int id = 238;
 
-    if (!check_location_exists(loc))
-    {
-        return;
-    }
-
-    if (read_proc_int(loc) != 0)
-    {
-        Result *new_result = create_new_issue();
-        set_id_and_desc(id, new_result);
-        set_issue_location(loc, new_result);
-        set_issue_name(issue_name, new_result);
-        set_other_info("", new_result);
-        add_new_result_medium(new_result, ar, cmdline);
-    }
+    if (check_location_exists(loc) && read_proc_int(loc) != 0)
+        add_medium_issue(ar, cmdline, id, loc, issue_name);
 }
 
 /**
@@ -137,20 +122,8 @@ static void check_ptrace_scope(All_Results *ar, Args *cmdline)
     char *issue_name = "sysctl ptrace enabled";
     int id = 239;
 
-    if (!check_location_exists(loc))
-    {
-        return;
-    }
-
-    if (read_proc_int(loc) != 3)
-    {
-        Result *new_result = create_new_issue();
-        set_id_and_desc(id, new_result);
-        set_issue_location(loc, new_result);
-        set_issue_name(issue_name, new_result);
-        set_other_info("", new_result);
-        add_new_result_medium(new_result, ar, cmdline);
-    }
+    if (check_location_exists(loc) && read_proc_int(loc) != 3)
+        add_medium_issue(ar, cmdline, id, loc, issue_name);
 }
 
 /**
@@ -166,20 +139,8 @@ static void check_kexec_load(All_Results *ar, Args *cmdline)
     char *issue_name = "sysctl kexec_load_disabled";
     int id = 240;
 
-    if (!check_location_exists(loc))
-    {
-        return;
-    }
-
-    if (read_proc_int(loc) != 1)
-    {
-        Result *new_result = create_new_issue();
-        set_id_and_desc(id, new_result);
-        set_issue_location(loc, new_result);
-        set_issue_name(issue_name, new_result);
-        set_other_info("", new_result);
-        add_new_result_medium(new_result, ar, cmdline);
-    }
+    if (check_location_exists(loc) && read_proc_int(loc) != 1)
+        add_medium_issue(ar, cmdline, id, loc, issue_name);
 }
 
 /**
@@ -195,20 +156,8 @@ static void check_bpf_disabled(All_Results *ar, Args *cmdline)
     char *issue_name = "sysctl unprivileged_bpf_disabled";
     int id = 241;
 
-    if (!check_location_exists(loc))
-    {
-        return;
-    }
-
-    if (read_proc_int(loc) != 1)
-    {
-        Result *new_result = create_new_issue();
-        set_id_and_desc(id, new_result);
-        set_issue_location(loc, new_result);
-        set_issue_name(issue_name, new_result);
-        set_other_info("", new_result);
-        add_new_result_medium(new_result, ar, cmdline);
-    }
+    if (check_location_exists(loc) && read_proc_int(loc) != 1)
+        add_medium_issue(ar, cmdline, id, loc, issue_name);
 }
 
 /**
@@ -226,20 +175,8 @@ static void check_bpf_jit_harden(All_Results *ar, Args *cmdline)
     char *issue_name = "sysctl bpf_jit_harden";
     int id = 242;
 
-    if (!check_location_exists(loc))
-    {
-        return;
-    }
-
-    if (read_proc_int(loc) != 1)
-    {
-        Result *new_result = create_new_issue();
-        set_id_and_desc(id, new_result);
-        set_issue_location(loc, new_result);
-        set_issue_name(issue_name, new_result);
-        set_other_info("", new_result);
-        add_new_result_medium(new_result, ar, cmdline);
-    }
+    if (check_location_exists(loc) && read_proc_int(loc) != 1)
+        add_medium_issue(ar, cmdline, id, loc, issue_name);
 }
 
 /**
@@ -258,20 +195,8 @@ static void check_event_parranoid(All_Results *ar, Args *cmdline)
     char *issue_name = "sysctl perf_event_paranoid";
     int id = 243;
 
-    if (!check_location_exists(loc))
-    {
-        return;
-    }
-
-    if (read_proc_int(loc) == -1)
-    {
-        Result *new_result = create_new_issue();
-        set_id_and_desc(id, new_result);
-        set_issue_location(loc, new_result);
-        set_issue_name(issue_name, new_result);
-        set_other_info("", new_result);
-        add_new_result_medium(new_result, ar, cmdline);
-    }
+    if (check_location_exists(loc) && read_proc_int(loc) == -1)
+        add_medium_issue(ar, cmdline, id, loc, issue_name);
 }
 
 /**
@@ -290,9 +215,7 @@ static void check_core_pattern(All_Results *ar, Args *cmdline)
     int buf_loc = 0;
 
     if (!check_location_exists(loc))
-    {
         return;
-    }
 
     FILE *fp = fopen(loc, "r");
     if (fp == NULL)
@@ -339,20 +262,8 @@ static void check_dmesg_restrict(All_Results *ar, Args *cmdline)
     char *issue_name = "sysctl dmesg_restrict";
     int id = 245;
 
-    if (!check_location_exists(loc))
-    {
-        return;
-    }
-
-    if (read_proc_int(loc) != 1)
-    {
-        Result *new_result = create_new_issue();
-        set_id_and_desc(id, new_result);
-        set_issue_location(loc, new_result);
-        set_issue_name(issue_name, new_result);
-        set_other_info("", new_result);
-        add_new_result_medium(new_result, ar, cmdline);
-    }
+    if (check_location_exists(loc) && read_proc_int(loc) != 1)
+        add_medium_issue(ar, cmdline, id, loc, issue_name);
 }
 
 /**
@@ -368,20 +279,8 @@ static void check_protected_hardlinks(All_Results *ar, Args *cmdline)
     char *issue_name = "sysctl protected_hardlinks";
     int id = 246;
 
-    if (!check_location_exists(loc))
-    {
-        return;
-    }
-
-    if (read_proc_int(loc) != 1)
-    {
-        Result *new_result = create_new_issue();
-        set_id_and_desc(id, new_result);
-        set_issue_location(loc, new_result);
-        set_issue_name(issue_name, new_result);
-        set_other_info("", new_result);
-        add_new_result_medium(new_result, ar, cmdline);
-    }
+    if (check_location_exists(loc) && read_proc_int(loc) != 1)
+        add_medium_issue(ar, cmdline, id, loc, issue_name);
 }
 
 /**
@@ -397,20 +296,8 @@ static void check_protected_symlinks(All_Results *ar, Args *cmdline)
     char *issue_name = "sysctl protected_softlinks";
     int id = 247;
 
-    if (!check_location_exists(loc))
-    {
-        return;
-    }
-
-    if (read_proc_int(loc) != 1)
-    {
-        Result *new_result = create_new_issue();
-        set_id_and_desc(id, new_result);
-        set_issue_location(loc, new_result);
-        set_issue_name(issue_name, new_result);
-        set_other_info("", new_result);
-        add_new_result_medium(new_result, ar, cmdline);
-    }
+    if (check_location_exists(loc) && read_proc_int(loc) != 1)
+        add_medium_issue(ar, cmdline, id, loc, issue_name);
 }
 
 /**
@@ -426,20 +313,8 @@ static void check_ipv4_tcp_syncookies(All_Results *ar, Args *cmdline)
     char *issue_name = "sysctl tcp_syncookies";
     int id = 248;
 
-    if (!check_location_exists(loc))
-    {
-        return;
-    }
-
-    if (read_proc_int(loc) != 1)
-    {
-        Result *new_result = create_new_issue();
-        set_id_and_desc(id, new_result);
-        set_issue_location(loc, new_result);
-        set_issue_name(issue_name, new_result);
-        set_other_info("", new_result);
-        add_new_result_medium(new_result, ar, cmdline);
-    }
+    if (check_location_exists(loc) && read_proc_int(loc) != 1)
+        add_medium_issue(ar, cmdline, id, loc, issue_name);
 }
 
 /**
@@ -456,20 +331,8 @@ static void check_ipv4_ip_forward(All_Results *ar, Args *cmdline)
     char *issue_name = "sysctl ip_forward";
     int id = 249;
 
-    if (!check_location_exists(loc))
-    {
-        return;
-    }
-
-    if (read_proc_int(loc) != 0)
-    {
-        Result *new_result = create_new_issue();
-        set_id_and_desc(id, new_result);
-        set_issue_location(loc, new_result);
-        set_issue_name(issue_name, new_result);
-        set_other_info("", new_result);
-        add_new_result_medium(new_result, ar, cmdline);
-    }
+    if (check_location_exists(loc) && read_proc_int(loc) != 0)
+        add_medium_issue(ar, cmdline, id, loc, issue_name);
 }
 
 /**
@@ -485,20 +348,8 @@ static void check_ipv4_icmp_ignore_bogus_error_response(All_Results *ar, Args *c
     char *issue_name = "sysctl icmp_ignore_bogus_error_responses";
     int id = 250;
 
-    if (!check_location_exists(loc))
-    {
-        return;
-    }
-
-    if (read_proc_int(loc) != 1)
-    {
-        Result *new_result = create_new_issue();
-        set_id_and_desc(id, new_result);
-        set_issue_location(loc, new_result);
-        set_issue_name(issue_name, new_result);
-        set_other_info("", new_result);
-        add_new_result_medium(new_result, ar, cmdline);
-    }
+    if (check_location_exists(loc) && read_proc_int(loc) != 1)
+        add_medium_issue(ar, cmdline, id, loc, issue_name);
 }
 
 /**
@@ -516,20 +367,8 @@ static void check_ipv4_accept_source_route(All_Results *ar, Args *cmdline)
     char *issue_name = "sysctl accept_source_route";
     int id = 251;
 
-    if (!check_location_exists(loc))
-    {
-        return;
-    }
-
-    if (read_proc_int(loc) != 0)
-    {
-        Result *new_result = create_new_issue();
-        set_id_and_desc(id, new_result);
-        set_issue_location(loc, new_result);
-        set_issue_name(issue_name, new_result);
-        set_other_info("", new_result);
-        add_new_result_medium(new_result, ar, cmdline);
-    }
+    if (check_location_exists(loc) && read_proc_int(loc) != 0)
+        add_medium_issue(ar, cmdline, id, loc, issue_name);
 }
 
 /**
@@ -548,20 +387,8 @@ static void check_ipv4_echo_ignore_broadcasts(All_Results *ar, Args *cmdline)
     char *issue_name = "sysctl icmp_echo_ignore_broadcasts";
     int id = 252;
 
-    if (!check_location_exists(loc))
-    {
-        return;
-    }
-
-    if (read_proc_int(loc) != 1)
-    {
-        Result *new_result = create_new_issue();
-        set_id_and_desc(id, new_result);
-        set_issue_location(loc, new_result);
-        set_issue_name(issue_name, new_result);
-        set_other_info("", new_result);
-        add_new_result_medium(new_result, ar, cmdline);
-    }
+    if (check_location_exists(loc) && read_proc_int(loc) != 1)
+        add_medium_issue(ar, cmdline, id, loc, issue_name);
 }
 
 /**
@@ -576,20 +403,8 @@ static void check_randomized_va_space(All_Results *ar, Args *cmdline)
     char *issue_name = "sysctl randomize_va_space";
     int id = 253;
 
-    if (!check_location_exists(loc))
-    {
-        return;
-    }
-
-    if (read_proc_int(loc) != 2)
-    {
-        Result *new_result = create_new_issue();
-        set_id_and_desc(id, new_result);
-        set_issue_location(loc, new_result);
-        set_issue_name(issue_name, new_result);
-        set_other_info("", new_result);
-        add_new_result_medium(new_result, ar, cmdline);
-    }
+    if (check_location_exists(loc) && read_proc_int(loc) != 2)
+        add_medium_issue(ar, cmdline, id, loc, issue_name);
 }
 
 static bool check_location_exists(char *location)
@@ -614,9 +429,8 @@ static int read_proc_int(char *location)
     {
         ch = fgetc(fp);
         if (ch == EOF)
-        {
             break;
-        }
+
         buf[buf_loc] = (char)ch;
         buf_loc++;
     }
@@ -625,4 +439,14 @@ static int read_proc_int(char *location)
 
     fclose(fp);
     return atoi(buf);
+}
+
+static void add_medium_issue(All_Results *ar, Args *cmdline, int id, char *loc, char *issue_name)
+{
+    Result *new_result = create_new_issue();
+    set_id_and_desc(id, new_result);
+    set_issue_location(loc, new_result);
+    set_issue_name(issue_name, new_result);
+    set_other_info("", new_result);
+    add_new_result_medium(new_result, ar, cmdline);
 }

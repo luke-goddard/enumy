@@ -22,7 +22,29 @@
 #include <limits.h>
 #include <ctype.h>
 
+/* ============================ PROTOTYPES ============================== */
+
+void walk_file_system(char *entry_location, All_Results *all_results, Args *cmdline);
+
+bool has_extension(File_Info *f, char *extension);
+bool has_global_write(File_Info *f);
+bool has_global_read(File_Info *f);
+bool has_global_execute(File_Info *f);
+bool has_group_write(File_Info *f);
+bool has_group_execute(File_Info *f);
+bool has_executable(File_Info *f);
+bool has_suid(File_Info *fi);
+bool has_guid(File_Info *fi);
+bool can_read(File_Info *fi);
+
+char *get_file_name(char *full_path);
+char *get_dir_name(char *full_path);
+void get_file_extension(char *buf, char *f_name);
+bool is_folder_writable(char *path);
+
 static void add_file_to_thread_pool(char *file_location, char *file_name, All_Results *all_results, Args *cmdline);
+
+/* ============================ FUNCTIONS ============================== */
 
 /**
  * Walks the file system, will skip files in ignore directory (cmdline arguments)
@@ -68,105 +90,26 @@ void walk_file_system(char *entry_location, All_Results *all_results, Args *cmdl
                 DEBUG_PRINT_EXTRA("Found folder %s\n", entry->d_name);
                 strncpy(file_location, entry_location, MAXSIZE - 1);
                 strcat(file_location, entry->d_name);
-                if (strcmp(cmdline->ignore_scan_dir, file_location) == 0)
-                {
+                if (
+                    strcmp(cmdline->ignore_scan_dir, file_location) == 0 ||
+                    strcmp("/proc", file_location) == 0 ||
+                    strcmp("/sys", file_location) == 0)
                     continue;
-                }
-                if (strcmp("/proc", file_location) == 0)
-                {
-                    continue;
-                }
-                if (strcmp("/sys", file_location) == 0)
-                {
-                    continue;
-                }
+
                 strcat(file_location, "/");
                 if (strcmp(cmdline->ignore_scan_dir, file_location) == 0)
-                {
                     continue;
-                }
+
                 walk_file_system(file_location, all_results, cmdline);
             }
             else
-            {
                 DEBUG_PRINT_EXTRA("Found unknown file type -> %s, %i\n", entry->d_name, entry->d_type);
-            }
         }
     }
     closedir(dir);
 }
 
-/**
- * Adds the file at to the thread pool of scans to perform
- * This function blocks if the thread pool is at maxiumum capacity 
- * @param file_location the file to be scaned 
- * @param file_name the name of the file that is going to be ccaned 
- */
-static void add_file_to_thread_pool(char *file_location, char *file_name, All_Results *all_results, Args *cmdline)
-{
-    int loops = 0;
-    Thread_Pool_Args *args = malloc(sizeof(Thread_Pool_Args));
-
-    if (args == NULL)
-    {
-        out_of_memory_err();
-    }
-
-    DEBUG_PRINT_EXTRA("Scanning file -> %s\n", file_location);
-
-    strncpy(args->file_location, file_location, MAXSIZE - 1);
-    strncpy(args->file_name, file_name, MAXSIZE - 1);
-    args->all_results = all_results;
-    args->cmdline = cmdline;
-
-    while (thpool_jobqueue_length(cmdline->fs_threadpool) > cmdline->fs_threads * 2)
-    {
-        usleep(200);
-        loops++;
-        if (loops > 1000)
-        {
-            DEBUG_PRINT("Potential DEADLOCK found when walking at location -> %s\n", file_location);
-        }
-    }
-
-    thpool_add_work(cmdline->fs_threadpool, (void *)scan_file_for_issues, (void *)args);
-}
-
-/**
-* Get the file extension the "." is not saved and an extension
-* abc.tar.gz would return .gz not .tar.gz
-* The extensions is saved in lowercase
-* @param buffer location to save the file extension
-* @param f_name the files name 
-*/
-void get_file_extension(char *buf, char *f_name)
-{
-    int size = strlen(f_name);
-    int i = 0;
-    char current;
-
-    if (size > MAX_FILE_SIZE - 1)
-    {
-        DEBUG_PRINT("Found a file with an extension bigger than buffer size -> %s\n", f_name);
-        return;
-    }
-
-    for (int x = size; x >= 0; x--)
-    {
-        current = f_name[x];
-        if (current == '.' && x != 0 && size - x < MAX_EXTENSION_SIZE)
-        {
-            for (int y = x + 1; y <= size; y++)
-            {
-                buf[i] = (char)tolower(f_name[y]);
-                i++;
-            }
-            buf[i] = '\0';
-            return;
-        }
-    }
-    buf[0] = '\0';
-}
+/* ============================ has_* FUNCTIONS ============================== */
 
 bool has_global_read(File_Info *f)
 {
@@ -218,6 +161,44 @@ bool can_read(File_Info *fi)
     return access(fi->location, R_OK) == 0;
 }
 
+/* ============================ get_* FUNCTIONS ============================== */
+
+/**
+* Get the file extension the "." is not saved and an extension
+* abc.tar.gz would return .gz not .tar.gz
+* The extensions is saved in lowercase
+* @param buffer location to save the file extension
+* @param f_name the files name 
+*/
+void get_file_extension(char *buf, char *f_name)
+{
+    int size = strlen(f_name);
+    int i = 0;
+    char current;
+
+    if (size > MAX_FILE_SIZE - 1)
+    {
+        DEBUG_PRINT("Found a file with an extension bigger than buffer size -> %s\n", f_name);
+        return;
+    }
+
+    for (int x = size; x >= 0; x--)
+    {
+        current = f_name[x];
+        if (current == '.' && x != 0 && size - x < MAX_EXTENSION_SIZE)
+        {
+            for (int y = x + 1; y <= size; y++)
+            {
+                buf[i] = (char)tolower(f_name[y]);
+                i++;
+            }
+            buf[i] = '\0';
+            return;
+        }
+    }
+    buf[0] = '\0';
+}
+
 /**
  * Given a full path this function returns the file path 
  * DONT forget to free the returned pointer
@@ -244,6 +225,8 @@ char *get_dir_name(char *full_path)
     return dirname((char *)strdup(full_path));
 }
 
+/* ============================ is_* FUNCTIONS ============================== */
+
 /**
  * Given a directory returns true if the current process 
  * can write to that directory 
@@ -251,12 +234,33 @@ char *get_dir_name(char *full_path)
  */
 bool is_folder_writable(char *path)
 {
-    if (access(path, W_OK) == 0)
-    {
-        return true;
-    }
-    else
-    {
-        return false;
-    }
+    return access(path, W_OK) == 0;
+}
+
+/* ============================ STATIC FUNCTIONS ============================== */
+
+/**
+ * Adds the file at to the thread pool of scans to perform
+ * This function blocks if the thread pool is at maxiumum capacity 
+ * @param file_location the file to be scaned 
+ * @param file_name the name of the file that is going to be ccaned 
+ */
+static void add_file_to_thread_pool(char *file_location, char *file_name, All_Results *all_results, Args *cmdline)
+{
+    Thread_Pool_Args *args = malloc(sizeof(Thread_Pool_Args));
+
+    if (args == NULL)
+        out_of_memory_err();
+
+    DEBUG_PRINT_EXTRA("Scanning file -> %s\n", file_location);
+
+    strncpy(args->file_location, file_location, MAXSIZE - 1);
+    strncpy(args->file_name, file_name, MAXSIZE - 1);
+    args->all_results = all_results;
+    args->cmdline = cmdline;
+
+    while (thpool_jobqueue_length(cmdline->fs_threadpool) > cmdline->fs_threads * 2)
+        usleep(200);
+
+    thpool_add_work(cmdline->fs_threadpool, (void *)scan_file_for_issues, (void *)args);
 }

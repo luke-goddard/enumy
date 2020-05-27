@@ -56,8 +56,12 @@
 #include <stdlib.h>
 #include <string.h>
 
+/* ============================ DEFINES ============================== */
+
 #define MISSING false
 #define INJECT true
+
+/* ============================ STRUCTS ============================== */
 
 typedef struct Lib_Info
 {
@@ -66,7 +70,10 @@ typedef struct Lib_Info
     Tag_Array *dt_runpath; // Low precedence
 } Lib_Info;
 
+/* ============================ PROTOTYPES ============================== */
+
 int rpath_scan(File_Info *fi, All_Results *ar, Args *cmdline);
+
 static int test_missing_shared_libaries(Lib_Info *lib_info, File_Info *fi, All_Results *ar, Args *cmdline);
 static Lib_Info *get_lib_info(Elf_File *elf);
 static void free_lib_info(Lib_Info *lib_info);
@@ -74,6 +81,8 @@ static bool search_shared_lib_in_dir(char *lib_name, char *location);
 static bool search_for_injectable(char *search_for, Tag_Array *tag, char *origin, File_Info *fi, All_Results *all_results, Args *cmdline);
 static bool search_dyn_path_for_missing(char *search_for, Tag_Array *tag, char *origin);
 static bool search_dyn_path(char *search_for, Tag_Array *tag, char *origin, bool mode, File_Info *fi, All_Results *ar, Args *cmdline);
+
+/* ============================ FUNCTIONS ============================== */
 
 /**
  * Given a file this function will determine if the file is an elf
@@ -87,20 +96,19 @@ int rpath_scan(File_Info *fi, All_Results *ar, Args *cmdline)
 {
     int findings = 0;
 
+    // This scan is only run if specified at run time
     if (cmdline->enabled_full_scans != true)
-    {
         return findings;
-    }
 
+    // Test to see if the file is really an elf
     int arch = has_elf_magic_bytes(fi);
     if (
         (arch == 0) ||
         (arch == 1 && sizeof(char *) != 4) ||
         (arch == 2 && sizeof(char *) != 8))
-    {
         return findings;
-    }
 
+    // Parse the elf file
     Elf_File *elf = parse_elf(fi);
     if (elf == NULL)
     {
@@ -108,17 +116,24 @@ int rpath_scan(File_Info *fi, All_Results *ar, Args *cmdline)
         return findings;
     }
 
-    elf_parse_dynamic_sections(elf);
+    // Parse the elf files dynamic section and parses the required shared objects needed
+    if (!elf_parse_dynamic_sections(elf))
+    {
+        DEBUG_PRINT("%s\n", "The elf file does not have a dynamic section");
+        goto CLOSE_ELF;
+    }
 
+    // Run the actual test
     Lib_Info *lib_info = get_lib_info(elf);
-
     findings += test_missing_shared_libaries(lib_info, fi, ar, cmdline);
-
-    close_elf(elf, fi);
     free_lib_info(lib_info);
 
+CLOSE_ELF:
+    close_elf(elf, fi);
     return findings;
 }
+
+/* ============================ STATIC FUNCTIONS ============================== */
 
 /**
  * Takes an Elf_File and then searches the dynamic section for 3 tags, DT_NEEDED
@@ -131,9 +146,7 @@ static Lib_Info *get_lib_info(Elf_File *elf)
     Lib_Info *lib_info = malloc(sizeof(Lib_Info));
 
     if (lib_info == NULL)
-    {
         out_of_memory_err();
-    }
 
     lib_info->dt_needed = search_dynamic_for_value(elf, DT_NEEDED);
     lib_info->dt_rpath = search_dynamic_for_value(elf, DT_RPATH);
@@ -163,11 +176,9 @@ static int test_missing_shared_libaries(Lib_Info *lib_info, File_Info *fi, All_R
     int findings = 0;
     char *origin;
 
+    // Does not need any shared libs
     if (lib_info->dt_needed == NULL)
-    {
-        // Does not need any shared libs
         return findings;
-    }
 
     origin = get_dir_name(fi->location);
 
@@ -189,49 +200,30 @@ static int test_missing_shared_libaries(Lib_Info *lib_info, File_Info *fi, All_R
 
         // check rpath
         if (search_dyn_path_for_missing(lib_info->dt_needed[i].tag_value, lib_info->dt_rpath, origin))
-        {
-            // printf("Found dt-needed in one of the dt_rpaths %s\n", fi->location);
             continue;
-        }
 
         // It's not in rpath, do we have control to anwhere in rpath?
         if (search_for_injectable(lib_info->dt_needed[i].tag_value, lib_info->dt_rpath, origin, fi, ar, cmdline))
-        {
             break;
-        }
-
-        // exit(EXIT_SUCCESS);
 
         // Check normal shared objects in /usr/lib etc
         if (test_if_standard_shared_object(cmdline->valid_shared_libs, lib_info->dt_needed[i].tag_value))
-        {
-            // printf("Found the shared libary in the standard location %s\n", fi->location);
             continue;
-        }
 
         // check run_path
         if (search_dyn_path_for_missing(lib_info->dt_needed[i].tag_value, lib_info->dt_runpath, origin))
-        {
-            // printf("Found the shared object in dt_runpath%s\n", fi->location);
             continue;
-        }
+
         // It's not in rpath, do we have control to anwhere in rpath?
         if (search_for_injectable(lib_info->dt_needed[i].tag_value, lib_info->dt_runpath, origin, fi, ar, cmdline))
-        {
             break;
-        }
 
         // This shared object is missing
         if (cmdline->enabled_missing_so)
         {
-            int id = 234;
             char name[MAXSIZE + 100];
-            Result *new_result = create_new_issue();
             snprintf(name, MAXSIZE, "Missing shared libary %s", lib_info->dt_needed[i].tag_value);
-            set_id_and_desc(id, new_result);
-            set_issue_location(fi->location, new_result);
-            set_issue_name(name, new_result);
-            add_new_result_info(new_result, ar, cmdline);
+            add_issue(INFO, 246, fi->location, ar, cmdline, "None readable potential encryption key", "");
         }
     }
 
@@ -291,15 +283,17 @@ static bool search_dyn_path(char *search_for, Tag_Array *tag, char *origin, bool
                             File_Info *fi, All_Results *ar, Args *cmdline)
 {
     char search_location[MAXSIZE];
+
     char *current_rpath;
     char current_character;
     int buf_copy_loc;
     int tag_size;
+    bool inloop = true;
+    char shared_issue_name[MAXSIZE + 100];
+    char suid_issue_name[MAXSIZE + 100];
 
     if (tag == NULL)
-    {
         return false;
-    }
 
     // Itterate through each path tag found in binary
     for (int i = 0; i < tag[0].size; i++)
@@ -314,62 +308,40 @@ static bool search_dyn_path(char *search_for, Tag_Array *tag, char *origin, bool
             current_character = current_rpath[y];
             if (current_character == ':')
             {
+
                 search_location[buf_copy_loc] = '\0';
                 buf_copy_loc = 0;
+
+                inloop = true;
+
+            TEST:
+                memset(shared_issue_name, '\0', MAXSIZE + 100);
+                memset(suid_issue_name, '\0', MAXSIZE + 100);
+                snprintf(shared_issue_name, MAXSIZE + 100, "Shared obj injection at -> %s", search_location);
+                snprintf(suid_issue_name, MAXSIZE + 100, "SUID binary with $ORIGIN -> %s", search_location);
 
                 if (strcmp("$ORIGIN", search_location) == 0)
                 {
                     if (fi != NULL && has_suid(fi))
-                    {
-                        int id = 236;
-                        Result *new_result = create_new_issue();
-                        char *name = "SUID binary with $ORIGIN";
-                        set_id_and_desc(id, new_result);
-                        set_other_info(search_for, new_result);
-                        set_issue_location(fi->location, new_result);
-                        set_issue_name(name, new_result);
-                        add_new_result_high(new_result, ar, cmdline);
-                        return true;
-                    }
+                        add_issue(HIGH, 246, fi->location, ar, cmdline, suid_issue_name, search_for);
+
                     if (mode == MISSING && search_shared_lib_in_dir(search_for, origin))
-                    {
                         return true;
-                    }
+
                     if (fi != NULL && mode == INJECT && is_folder_writable(search_location))
-                    {
-                        int id = 235;
-                        char name[MAXSIZE + 100];
-                        Result *new_result = create_new_issue();
-                        snprintf(name, MAXSIZE + 100, "Shared obj injection at -> %s", search_location);
-                        set_id_and_desc(id, new_result);
-                        set_other_info(search_for, new_result);
-                        set_issue_location(fi->location, new_result);
-                        set_issue_name(name, new_result);
-                        add_new_result_high(new_result, ar, cmdline);
-                        return true;
-                    }
+                        add_issue(HIGH, 246, fi->location, ar, cmdline, shared_issue_name, search_for);
                 }
                 else
                 {
                     if (mode == MISSING && search_shared_lib_in_dir(search_for, search_location))
-                    {
                         return true;
-                    }
+
                     if (mode == INJECT && is_folder_writable(search_location))
-                    {
-                        int id = 235;
-                        char name[MAXSIZE + 100];
-                        Result *new_result = create_new_issue();
-                        snprintf(name, MAXSIZE + 100, "Shared obj injection at -> %s", search_location);
-                        set_id_and_desc(id, new_result);
-                        set_other_info(search_for, new_result);
-                        set_issue_location(fi->location, new_result);
-                        set_issue_name(name, new_result);
-                        add_new_result_high(new_result, ar, cmdline);
-                        return true;
-                    }
+                        add_issue(HIGH, 246, fi->location, ar, cmdline, shared_issue_name, search_for);
                 }
                 search_location[buf_copy_loc] = '\0';
+                if (!inloop)
+                    return false;
             }
             else
             {
@@ -377,51 +349,9 @@ static bool search_dyn_path(char *search_for, Tag_Array *tag, char *origin, bool
                 buf_copy_loc++;
             }
         }
-
-        search_location[buf_copy_loc + 1] = '\0';
-        // printf("RPath -> %s\n", search_location);
-        if (strcmp("$ORIGIN", search_location) == 0)
-        {
-            if (mode == MISSING && search_shared_lib_in_dir(search_for, origin))
-            {
-                return true;
-            }
-            if (mode == INJECT && is_folder_writable(search_location))
-            {
-                int id = 235;
-                char name[MAXSIZE + 100];
-                Result *new_result = create_new_issue();
-                snprintf(name, MAXSIZE + 100, "Shared obj injection at -> %s", search_location);
-                set_id_and_desc(id, new_result);
-                set_other_info(search_for, new_result);
-                set_issue_location(fi->location, new_result);
-                set_issue_name(name, new_result);
-                add_new_result_high(new_result, ar, cmdline);
-                return true;
-            }
-        }
-        else
-        {
-            if (mode == MISSING && search_shared_lib_in_dir(search_for, search_location))
-            {
-                return true;
-            }
-            if (mode == INJECT && is_folder_writable(search_location))
-            {
-                int id = 235;
-                char name[MAXSIZE + 100];
-                Result *new_result = create_new_issue();
-                snprintf(name, MAXSIZE + 100, "Shared obj injection at -> %s", search_location);
-                set_id_and_desc(id, new_result);
-                set_other_info(search_for, new_result);
-                set_issue_location(fi->location, new_result);
-                set_issue_name(name, new_result);
-                add_new_result_high(new_result, ar, cmdline);
-                return true;
-            }
-        }
     }
-    return false;
+    inloop = false;
+    goto TEST;
 }
 
 /** 
@@ -437,15 +367,10 @@ static bool search_shared_lib_in_dir(char *lib_name, char *location)
     char file_location[MAXSIZE];
 
     file_location[0] = '\0';
-
     dir = opendir(location);
 
     if (dir == NULL)
-    {
         return false;
-    }
-
-    // printf("Searching for shared lib %s in location %s\n", lib_name, location);
 
     while ((entry = readdir(dir)) != NULL)
     {
@@ -462,9 +387,7 @@ static bool search_shared_lib_in_dir(char *lib_name, char *location)
                 strcat(file_location, entry->d_name);
                 strcat(file_location, "/");
                 if (!search_shared_lib_in_dir(lib_name, file_location))
-                {
                     continue;
-                }
             }
         }
     }

@@ -16,6 +16,12 @@
 #include <string.h>
 #include <stdlib.h>
 
+/* ============================ PROTOTYPES ============================== */
+
+int save_as_json(All_Results *ar, Args *args);
+
+/* ============================ FUNCTIONS ============================== */
+
 int save_as_json(All_Results *ar, Args *args)
 {
     cJSON *root, *infos, *info;

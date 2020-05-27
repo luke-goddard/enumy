@@ -12,8 +12,10 @@
 
 #include <string.h>
 
+/* ============================ PROTOTYPES ============================== */
+
 int break_out_binary_scan(File_Info *fi, All_Results *ar, Args *cmdline);
-static void add_issue(int id, char *name, File_Info *fi, All_Results *ar, Args *cmdline);
+static void add_issue_wrapper(int id, char *name, File_Info *fi, All_Results *ar, Args *cmdline);
 static bool compare_and_add_issue(int id, File_Info *fi, All_Results *ar, Args *cmdline, char *search_str);
 
 /**
@@ -316,6 +318,8 @@ int break_out_binary_scan(File_Info *fi, All_Results *ar, Args *cmdline)
     return 0;
 }
 
+/* ============================ STATIC FUNCTIONS ============================== */
+
 /**
  * @param id issues new id 
  * @param name name of the breakout binary
@@ -328,7 +332,7 @@ static bool compare_and_add_issue(int id, File_Info *fi, All_Results *ar, Args *
 {
     if (strcmp(fi->name, search_str) == 0)
     {
-        add_issue(id, fi->name, fi, ar, cmdline);
+        add_issue_wrapper(id, fi->name, fi, ar, cmdline);
         return true;
     }
     return false;
@@ -342,7 +346,7 @@ static bool compare_and_add_issue(int id, File_Info *fi, All_Results *ar, Args *
  * @param ar struct containing all the results that enumy has found on the system
  * @param cmdline a struct continaing the runtime arguments for enumy 
  */
-static void add_issue(int id, char *name, File_Info *fi, All_Results *ar, Args *cmdline)
+static void add_issue_wrapper(int id, char *name, File_Info *fi, All_Results *ar, Args *cmdline)
 {
     char issue_name[MAXSIZE];
     char *base_name = " breakout binary found";
@@ -350,9 +354,5 @@ static void add_issue(int id, char *name, File_Info *fi, All_Results *ar, Args *
     strncpy(issue_name, name, MAXSIZE - strlen(base_name));
     strcat(issue_name, base_name);
 
-    Result *new_result = create_new_issue();
-    set_id_and_desc(id, new_result);
-    set_issue_location(fi->location, new_result);
-    set_issue_name(issue_name, new_result);
-    add_new_result_high(new_result, ar, cmdline);
+    add_issue(HIGH, id, fi->location, ar, cmdline, issue_name, "None");
 }
