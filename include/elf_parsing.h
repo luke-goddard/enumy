@@ -131,23 +131,23 @@ Elf_File *parse_elf(File_Info *fi);
 /**
  * This function will itterate through the dynamic section and find tags that match the search 
  * criteria, any tag found will be added to a Tag_Array.
- * @param file The Elf_File struct 
+ * @param elf The Elf_File struct 
  * @param tag The dynamic tag that we're searching 
  * @return A Tag_Array with all of the search results if nothing found then returns NULL 
  */
-Tag_Array *search_dynamic_for_value(Elf_File *file, Tag tag);
+Tag_Array *search_dynamic_for_value(Elf_File *elf, Tag tag);
 
 /**
  * Tries to find the dynamic section of the ELF file, not all ELF files have a dynamic section
  * @param file This is the Elf_File that we're use
  * @return True if the dynamic section is found, else return False
  */
-bool elf_parse_dynamic_sections(Elf_File *file);
+bool elf_parse_dynamic_sections(Elf_File *elf);
 
 /**
  * This function will deallocate all of the memory required for the Elf File structure
  * This includes unmapping the mmaped file 
- * @param elf_file This is the struct containing the Elf Information
+ * @param elf This is the struct containing the Elf Information
  * @param fi This is the file information 
  */
-void close_elf(Elf_File *elf_file, File_Info *fi);
+void close_elf(Elf_File *elf, File_Info *fi);

@@ -40,19 +40,19 @@
 
 int has_elf_magic_bytes(File_Info *fi);
 void close_elf(Elf_File *elf_file, File_Info *fi);
-bool elf_parse_dynamic_sections(Elf_File *file);
+bool elf_parse_dynamic_sections(Elf_File *elf);
 
 Elf_File *parse_elf(File_Info *fi);
 Elf_File *mmap_elf(File_Info *fi);
-Tag_Array *search_dynamic_for_value(Elf_File *file, Tag tag);
+Tag_Array *search_dynamic_for_value(Elf_File *elf, Tag tag);
 
-static Elf_Off elf_dynamic_strings_offset(Elf_File *file);
+static Elf_Off elf_dynamic_strings_offset(Elf_File *elf);
 static inline Elf_Ehdr *elf_header(const void *map_start);
 static inline Elf_Shdr *elf_sheader(const void *map_start);
 static inline Elf_Shdr *elf_section(const void *map_start, int idx);
-static inline Elf_Phdr *elf_program_header(Elf_File *file);
+static inline Elf_Phdr *elf_program_header(Elf_File *elf);
 static inline char *elf_shstr_table(const void *map_start);
-static Elf_Phdr *get_dynamic_sections_program_header(Elf_File *file);
+static Elf_Phdr *get_dynamic_sections_program_header(Elf_File *elf);
 
 /* ============================ FUNCTIONS ============================== */
 
@@ -209,15 +209,15 @@ FAILURE:
 
 /**
  * Tries to find the dynamic section of the ELF file, not all ELF files have a dynamic section
- * @param file This is the Elf_File that we're use
+ * @param elf This is the Elf_File that we're use
  * @return True if the dynamic section is found, else return False
  */
-bool elf_parse_dynamic_sections(Elf_File *file)
+bool elf_parse_dynamic_sections(Elf_File *elf)
 {
-    file->dynamic_header = 0;
-    file->dynamic_strings = elf_dynamic_strings_offset(file);
-    file->dynamic_header = get_dynamic_sections_program_header(file);
-    return file->dynamic_header != 0;
+    elf->dynamic_header = 0;
+    elf->dynamic_strings = elf_dynamic_strings_offset(elf);
+    elf->dynamic_header = get_dynamic_sections_program_header(elf);
+    return elf->dynamic_header != 0;
 }
 
 /**
@@ -225,27 +225,27 @@ bool elf_parse_dynamic_sections(Elf_File *file)
  * criteria, any tag found will be added to a Tag_Array.
  * Currently the function will itterate through the symbols twice, the first time finds how many 
  * hits the search gets so that we can allocate the correct ammount of memory
- * @param file The Elf_File struct 
+ * @param elf The Elf_File struct 
  * @param tag The dynamic tag that we're searching 
  * @return A Tag_Array with all of the search results if nothing found then returns NULL 
  */
-Tag_Array *search_dynamic_for_value(Elf_File *file, Tag tag)
+Tag_Array *search_dynamic_for_value(Elf_File *elf, Tag tag)
 {
     int number_of_elements = 0; /* Total number of tags */
     int number_of_findings = 0; /* Total number of matching tags */
     int current_findings = 0;
 
     /* Make sure that the Elf_File has been parsed */
-    if (file->dynamic_strings == 0 || file->dynamic_header == NULL)
+    if (elf->dynamic_strings == 0 || elf->dynamic_header == NULL)
         return NULL;
 
     /* We search twice so we need two pointers */
-    Elf_Internal_Dyn *entry = file->dynamic_header->p_offset + file->address;
-    Elf_Internal_Dyn *entry2 = file->dynamic_header->p_offset + file->address;
+    Elf_Internal_Dyn *entry = elf->dynamic_header->p_offset + elf->address;
+    Elf_Internal_Dyn *entry2 = elf->dynamic_header->p_offset + elf->address;
 
     /* Loop through the dynamic section until we find DT_NULL, this signifies that we've reached the end */
     // TODO corrupt ELF Files could break this if no DT_NULL is present
-    for (; (char *)(entry + 2) <= (char *)(file->dynamic_header->p_offset + file->address + file->dynamic_header->p_filesz); entry++)
+    for (; (char *)(entry + 2) <= (char *)(elf->dynamic_header->p_offset + elf->address + elf->dynamic_header->p_filesz); entry++)
     {
         /* Current tag is equal to the search value */
         if (entry->d_tag == tag)
@@ -275,7 +275,7 @@ Tag_Array *search_dynamic_for_value(Elf_File *file, Tag tag)
     {
         if (entry2->d_tag == tag)
         {
-            findings[current_findings].tag_value = file->address + file->dynamic_strings + entry2->d_un.d_ptr;
+            findings[current_findings].tag_value = elf->address + elf->dynamic_strings + entry2->d_un.d_ptr;
             current_findings++;
         }
         entry2++;
@@ -286,13 +286,13 @@ Tag_Array *search_dynamic_for_value(Elf_File *file, Tag tag)
 /**
  * This function will deallocate all of the memory required for the Elf File structure
  * This includes unmapping the mmaped file 
- * @param elf_file This is the struct containing the Elf Information
+ * @param elf This is the struct containing the Elf Information
  * @param fi This is the file information 
  */
-void close_elf(Elf_File *elf_file, File_Info *fi)
+void close_elf(Elf_File *elf, File_Info *fi)
 {
-    munmap((void *)elf_file->address, fi->stat->st_size);
-    free(elf_file);
+    munmap((void *)elf->address, fi->stat->st_size);
+    free(elf);
 }
 
 /* ============================ STATIC FUNCTIONS ============================== */

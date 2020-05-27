@@ -13,7 +13,6 @@
 #include <string.h>
 
 #include "main.h"
-#include "gui.h"
 #include "scan.h"
 #include "results.h"
 #include "debug.h"
@@ -30,14 +29,6 @@
 #define KEY_DEL_ALL_ID 68
 #define KEY_QUIT 113
 
-/* ============================ STRUCTS ============================== */
-
-typedef struct UserInputThreadArgs
-{
-    Ncurses_Layout *layout;
-    All_Results *all_results;
-} UserInputThreadArgs;
-
 /* ============================ GLOBAL VARS ============================== */
 
 bool DEBUG = false;
@@ -45,7 +36,6 @@ bool DEBUG_EXTRA = false;
 
 /* ============================ PROTOTYPES ============================== */
 
-static void *handle_user_input(void *user_input_args);
 static void show_runtime_args(Args *args);
 static void sigint_handler(int sig);
 static void banner();
@@ -75,18 +65,8 @@ int main(int argc, char *argv[])
     args->fs_threads = 4;
 
     DEBUG = false;
-    struct Ncurses_Layout nlayout = {
-        .logo = NULL,
-        .bars = NULL,
-        .main = NULL,
-        .id = NULL};
 
     All_Results *all_results = initilize_total_results();
-
-    struct UserInputThreadArgs user_input_thread_args = {
-        .layout = &nlayout,
-        .all_results = all_results};
-
     signal(SIGINT, sigint_handler);
 
     while ((opt = getopt(argc, argv, "sd:fhno:i:w:t:")) != -1)
@@ -146,29 +126,13 @@ int main(int argc, char *argv[])
         }
     }
 
-    if (args->enabled_ncurses == true)
-    {
-        char *retval;
-        pthread_t user_input_thread;
-        init_ncurses_layout(&nlayout, all_results);
-        pthread_create(&user_input_thread, NULL, &handle_user_input, &user_input_thread_args);
-        args->enabled_ncurses = true;
-        start_scan(&nlayout, all_results, args);
-        pthread_join(user_input_thread, (void **)&retval);
-        endwin();
-        free(args);
-        return 0;
-    }
-    else
-    {
-        banner();
-        printf("\n\n");
+    banner();
+    printf("\n\n");
 
-        if (DEBUG)
-            show_runtime_args(args);
+    if (DEBUG)
+        show_runtime_args(args);
 
-        start_scan(&nlayout, all_results, args);
-    }
+    start_scan(all_results, args);
     free(args);
     return 0;
 }
@@ -214,54 +178,6 @@ static void help()
     puts(" -n           Enabled ncurses");
     puts(" -h           Show help");
     exit(0);
-}
-
-static void *handle_user_input(void *user_input_args)
-{
-    UserInputThreadArgs *args = (UserInputThreadArgs *)user_input_args;
-    All_Results *all_results = args->all_results;
-    Ncurses_Layout *layout = args->layout;
-    char input;
-
-    while ((input = getch()) != KEY_QUIT)
-    {
-        switch (input)
-        {
-        case KEY_J:
-            layout->cursor_position++;
-            break;
-
-        case KEY_K:
-            layout->cursor_position--;
-            break;
-
-        case KEY_SHOW_HIGH:
-            layout->current_category = HIGH;
-            update_table(all_results, layout);
-            update_bars(all_results, layout);
-            break;
-
-        case KEY_SHOW_MEDIUM:
-            layout->current_category = MEDIUM;
-            update_table(all_results, layout);
-            update_bars(all_results, layout);
-            break;
-
-        case KEY_SHOW_LOW:
-            layout->current_category = LOW;
-            update_table(all_results, layout);
-            update_bars(all_results, layout);
-            break;
-
-        case KEY_SHOW_INFO:
-            layout->current_category = INFO;
-            update_table(all_results, layout);
-            update_bars(all_results, layout);
-            break;
-        }
-    }
-    kill(getpid(), SIGINT);
-    return NULL;
 }
 
 static void show_runtime_args(Args *args)

@@ -4,7 +4,6 @@
 
 #include "results.h"
 #include "main.h"
-#include "gui.h"
 #include "file_system.h"
 #include "utils.h"
 #include "vector.h"
@@ -37,7 +36,7 @@ int FilesScanned = 0;
 
 /* ============================ PROTOTYPES ============================== */
 
-void start_scan(Ncurses_Layout *layout, All_Results *all_results, Args *args);
+void start_scan(All_Results *all_results, Args *args);
 void scan_file_for_issues(Thread_Pool_Args *thread_pool_args);
 
 static void *create_walk_thread(void *args);
@@ -114,7 +113,7 @@ end:
  * @param all_results a structure containing all of the results that enumy finds
  * @param args a structure containing all of the commandline arguments
  */
-void start_scan(Ncurses_Layout *layout, All_Results *all_results, Args *args)
+void start_scan(All_Results *all_results, Args *args)
 {
     pthread_t walk_thread;
     char *retval;
@@ -146,7 +145,6 @@ void start_scan(Ncurses_Layout *layout, All_Results *all_results, Args *args)
     printf("Total files scanned -> %i\n", FilesScanned);
     free_total_results(all_results);
     free_shared_libs(args->valid_shared_libs);
-    update_bars(all_results, layout);
 }
 
 /* ============================ STATIC FUNCTIONS ============================== */
