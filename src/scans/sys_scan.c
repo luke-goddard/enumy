@@ -18,57 +18,59 @@
 
 /* ============================ PROTOTYPES ============================== */
 
-void sys_scan(All_Results *ar, Args *args);
+void sys_scan(All_Results *ar);
 
 static bool check_location_exists(char *location);
 static int read_proc_int(char *location);
 
-static void check_kptr_restrict(All_Results *ar, Args *cmdline);
-static void check_namespaces(All_Results *ar, Args *cmdline);
-static void check_ptrace_scope(All_Results *ar, Args *cmdline);
-static void check_kexec_load(All_Results *ar, Args *cmdline);
-static void check_bpf_disabled(All_Results *ar, Args *cmdline);
-static void check_bpf_jit_harden(All_Results *ar, Args *cmdline);
-static void check_event_parranoid(All_Results *ar, Args *cmdline);
-static void check_core_pattern(All_Results *ar, Args *cmdline);
-static void check_dmesg_restrict(All_Results *ar, Args *cmdline);
-static void check_protected_hardlinks(All_Results *ar, Args *cmdline);
-static void check_protected_symlinks(All_Results *ar, Args *cmdline);
-static void check_ipv4_tcp_syncookies(All_Results *ar, Args *cmdline);
-static void check_ipv4_ip_forward(All_Results *ar, Args *cmdline);
-static void check_ipv4_icmp_ignore_bogus_error_response(All_Results *ar, Args *cmdline);
-static void check_ipv4_accept_source_route(All_Results *ar, Args *cmdline);
-static void check_randomized_va_space(All_Results *ar, Args *cmdline);
-static void check_ipv4_echo_ignore_broadcasts(All_Results *ar, Args *cmdline);
-static void add_medium_issue(All_Results *ar, Args *cmdline, int id, char *loc, char *issue_name);
+static void check_kptr_restrict(All_Results *ar);
+static void check_namespaces(All_Results *ar);
+static void check_ptrace_scope(All_Results *ar);
+static void check_kexec_load(All_Results *ar);
+static void check_bpf_disabled(All_Results *ar);
+static void check_bpf_jit_harden(All_Results *ar);
+static void check_event_parranoid(All_Results *ar);
+static void check_core_pattern(All_Results *ar);
+static void check_dmesg_restrict(All_Results *ar);
+static void check_protected_hardlinks(All_Results *ar);
+static void check_protected_symlinks(All_Results *ar);
+static void check_ipv4_tcp_syncookies(All_Results *ar);
+static void check_ipv4_ip_forward(All_Results *ar);
+static void check_ipv4_icmp_ignore_bogus_error_response(All_Results *ar);
+static void check_ipv4_accept_source_route(All_Results *ar);
+static void check_randomized_va_space(All_Results *ar);
+static void check_ipv4_echo_ignore_broadcasts(All_Results *ar);
+static void add_medium_issue(All_Results *ar, char *loc, char *issue_name);
 
 /* ============================ FUNCTIONS ============================== */
 
 /**
- * This function kicks of all of the /proc/sys/ scans to see if their 
- * are any easy ways of hardening the kernel
- * @param ar This is the structure containing all the issues enumy has found
- * @param cmdline This is the runtime arguments for enumy 
+ * This scan will look at kerenl parameters in /proc/sys
+ * The values of these parameters can have major implications on the security
+ * of product machines for example, ASLR should always be enabled on modern
+ * systems. There are plenty of other parameters that would probably be ignored 
+ * unless you're doing a very in depth pentest
+ * @param ar This is the structure that holds the link lists with the results 
  */
-void sys_scan(All_Results *ar, Args *cmdline)
+void sys_scan(All_Results *ar)
 {
-    check_kptr_restrict(ar, cmdline);
-    check_namespaces(ar, cmdline);
-    check_ptrace_scope(ar, cmdline);
-    check_kexec_load(ar, cmdline);
-    check_bpf_disabled(ar, cmdline);
-    check_bpf_jit_harden(ar, cmdline);
-    check_event_parranoid(ar, cmdline);
-    check_core_pattern(ar, cmdline);
-    check_dmesg_restrict(ar, cmdline);
-    check_protected_hardlinks(ar, cmdline);
-    check_protected_symlinks(ar, cmdline);
-    check_ipv4_tcp_syncookies(ar, cmdline);
-    check_ipv4_ip_forward(ar, cmdline);
-    check_ipv4_icmp_ignore_bogus_error_response(ar, cmdline);
-    check_ipv4_accept_source_route(ar, cmdline);
-    check_ipv4_echo_ignore_broadcasts(ar, cmdline);
-    check_randomized_va_space(ar, cmdline);
+    check_kptr_restrict(ar);
+    check_namespaces(ar);
+    check_ptrace_scope(ar);
+    check_kexec_load(ar);
+    check_bpf_disabled(ar);
+    check_bpf_jit_harden(ar);
+    check_event_parranoid(ar);
+    check_core_pattern(ar);
+    check_dmesg_restrict(ar);
+    check_protected_hardlinks(ar);
+    check_protected_symlinks(ar);
+    check_ipv4_tcp_syncookies(ar);
+    check_ipv4_ip_forward(ar);
+    check_ipv4_icmp_ignore_bogus_error_response(ar);
+    check_ipv4_accept_source_route(ar);
+    check_ipv4_echo_ignore_broadcasts(ar);
+    check_randomized_va_space(ar);
 }
 
 /* ============================ STATIC FUNCTIONS ============================== */
@@ -79,32 +81,24 @@ void sys_scan(All_Results *ar, Args *cmdline)
  * 1: kernel pointers printed using the %pK format specifier will be replaced with 0's unless the user has CAP_SYSLOG 
  *    and effective user and group ids are equal to the real ids
  * @param ar This is the structure containing all the issues enumy has found
- * @param cmdline This is the runtime arguments for enumy 
  */
-static void check_kptr_restrict(All_Results *ar, Args *cmdline)
+static void check_kptr_restrict(All_Results *ar)
 {
     char *loc = "/proc/sys/kernel/kptr_restrict";
-    char *issue_name = "sysctl kptr_restrict disabled";
-    int id = 237;
-
     if (check_location_exists(loc) && read_proc_int(loc) != 1)
-        add_medium_issue(ar, cmdline, id, loc, issue_name);
+        add_medium_issue(ar, loc, "sysctl kptr_restrict disabled");
 }
 
 /**
  * /proc/sys/user/max_user_namespaces
  * The maximum number of user namespaces that any user in the current user name space may create 
  * @param ar This is the structure containing all the issues enumy has found
- * @param cmdline This is the runtime arguments for enumy 
  */
-static void check_namespaces(All_Results *ar, Args *cmdline)
+static void check_namespaces(All_Results *ar)
 {
     char *loc = "/proc/sys/user/max_user_namespaces";
-    char *issue_name = "sysctl namespaces enabled";
-    int id = 238;
-
     if (check_location_exists(loc) && read_proc_int(loc) != 0)
-        add_medium_issue(ar, cmdline, id, loc, issue_name);
+        add_medium_issue(ar, loc, "sysctl namespaces enabled");
 }
 
 /**
@@ -114,16 +108,12 @@ static void check_namespaces(All_Results *ar, Args *cmdline)
  * 2: Only admin can use ptrace, as it required CAP_SYS_PTRACE capability.
  * 3: No processes may be traced with ptrace. Once set, a reboot is needed to enable ptracing again.
  * @param ar This is the structure containing all the issues enumy has found
- * @param cmdline This is the runtime arguments for enumy 
  */
-static void check_ptrace_scope(All_Results *ar, Args *cmdline)
+static void check_ptrace_scope(All_Results *ar)
 {
     char *loc = "/proc/sys/kernel/yama/ptrace_scope";
-    char *issue_name = "sysctl ptrace enabled";
-    int id = 239;
-
     if (check_location_exists(loc) && read_proc_int(loc) != 3)
-        add_medium_issue(ar, cmdline, id, loc, issue_name);
+        add_medium_issue(ar, loc, "sysctl ptrace enabled");
 }
 
 /**
@@ -131,16 +121,12 @@ static void check_ptrace_scope(All_Results *ar, Args *cmdline)
  * 0: (Default) kexec_load syscall enabled
  * 1: kexec_load syscall disabled (cannot be re-enabled)
  * @param ar This is the structure containing all the issues enumy has found
- * @param cmdline This is the runtime arguments for enumy 
  */
-static void check_kexec_load(All_Results *ar, Args *cmdline)
+static void check_kexec_load(All_Results *ar)
 {
     char *loc = "/proc/sys/kernel/kexec_load_disabled";
-    char *issue_name = "sysctl kexec_load_disabled";
-    int id = 240;
-
     if (check_location_exists(loc) && read_proc_int(loc) != 1)
-        add_medium_issue(ar, cmdline, id, loc, issue_name);
+        add_medium_issue(ar, loc, "sysctl kexec_load_disabled");
 }
 
 /**
@@ -148,16 +134,12 @@ static void check_kexec_load(All_Results *ar, Args *cmdline)
  * 0: bpf() syscall for unprivileged users is enabled
  * 1: bpf() syscall restricted to privileged users
  * @param ar This is the structure containing all the issues enumy has found
- * @param cmdline This is the runtime arguments for enumy 
  */
-static void check_bpf_disabled(All_Results *ar, Args *cmdline)
+static void check_bpf_disabled(All_Results *ar)
 {
     char *loc = "/proc/sys/kernel/unprivileged_bpf_disabled";
-    char *issue_name = "sysctl unprivileged_bpf_disabled";
-    int id = 241;
-
     if (check_location_exists(loc) && read_proc_int(loc) != 1)
-        add_medium_issue(ar, cmdline, id, loc, issue_name);
+        add_medium_issue(ar, loc, "sysctl unprivileged_bpf_disabled");
 }
 
 /**
@@ -167,16 +149,12 @@ static void check_bpf_disabled(All_Results *ar, Args *cmdline)
  * 0: disabled
  * 1: enabled
  * @param ar This is the structure containing all the issues enumy has found
- * @param cmdline This is the runtime arguments for enumy 
  */
-static void check_bpf_jit_harden(All_Results *ar, Args *cmdline)
+static void check_bpf_jit_harden(All_Results *ar)
 {
     char *loc = "/proc/sys/net/core/bpf_jit_harden";
-    char *issue_name = "sysctl bpf_jit_harden";
-    int id = 242;
-
     if (check_location_exists(loc) && read_proc_int(loc) != 1)
-        add_medium_issue(ar, cmdline, id, loc, issue_name);
+        add_medium_issue(ar, loc, "sysctl bpf_jit_harden is disabled");
 }
 
 /**
@@ -187,36 +165,30 @@ static void check_bpf_jit_harden(All_Results *ar, Args *cmdline)
  *  1: Disallow CPU event access by users without CAP_SYS_ADMIN.
  *  2: Disallow kernel profiling by users without CAP_SYS_ADMIN.
  * @param ar This is the structure containing all the issues enumy has found
- * @param cmdline This is the runtime arguments for enumy 
  */
-static void check_event_parranoid(All_Results *ar, Args *cmdline)
+static void check_event_parranoid(All_Results *ar)
 {
     char *loc = "/proc/sys/kernel/perf_event_paranoid";
-    char *issue_name = "sysctl perf_event_paranoid";
-    int id = 243;
-
     if (check_location_exists(loc) && read_proc_int(loc) == -1)
-        add_medium_issue(ar, cmdline, id, loc, issue_name);
+        add_medium_issue(ar, loc, "sysctl perf_event_paranoid");
 }
 
 /**
  * /proc/sys/kernel/core_pattern
  * Should be set to |/bin/false to disable core dumps 
  * @param ar This is the structure containing all the issues enumy has found
- * @param cmdline This is the runtime arguments for enumy 
  */
-static void check_core_pattern(All_Results *ar, Args *cmdline)
+static void check_core_pattern(All_Results *ar)
 {
     char *loc = "/proc/sys/kernel/core_pattern";
-    char *issue_name = "sysctl core_pattern";
-    int id = 244;
-    int ch;
     char buf[MAXSIZE];
     int buf_loc = 0;
 
+    /* Make sure that the path exists */
     if (!check_location_exists(loc))
         return;
 
+    /* Try and open the file */
     FILE *fp = fopen(loc, "r");
     if (fp == NULL)
     {
@@ -224,29 +196,24 @@ static void check_core_pattern(All_Results *ar, Args *cmdline)
         return;
     }
 
+    /* Read the file character by character */
     while (!feof(fp))
     {
-        ch = fgetc(fp);
+        int ch = fgetc(fp);
         if (ch == EOF)
-        {
             break;
-        }
+
         buf[buf_loc] = (char)ch;
         buf_loc++;
     }
 
+    /* clean up */
     buf[buf_loc] = '\0';
     fclose(fp);
 
+    /* See the file contained "/false" indicating that core dumps are disabled */
     if (strstr("/false", buf) == NULL)
-    {
-        Result *new_result = create_new_issue();
-        set_id_and_desc(id, new_result);
-        set_issue_location(loc, new_result);
-        set_issue_name(issue_name, new_result);
-        set_other_info("", new_result);
-        add_new_result_medium(new_result, ar, cmdline);
-    }
+        add_medium_issue(ar, loc, "sysctl core_pattern is not disabled");
 }
 
 /**
@@ -254,16 +221,12 @@ static void check_core_pattern(All_Results *ar, Args *cmdline)
  * 0: No restrictions
  * 1: users must have CAP_SYSLOG to use dmesg
  * @param ar This is the structure containing all the issues enumy has found
- * @param cmdline This is the runtime arguments for enumy 
  */
-static void check_dmesg_restrict(All_Results *ar, Args *cmdline)
+static void check_dmesg_restrict(All_Results *ar)
 {
     char *loc = "/proc/sys/kernel/dmesg_restrict";
-    char *issue_name = "sysctl dmesg_restrict";
-    int id = 245;
-
     if (check_location_exists(loc) && read_proc_int(loc) != 1)
-        add_medium_issue(ar, cmdline, id, loc, issue_name);
+        add_medium_issue(ar, loc, "sysctl dmesg_restrict has no restrictions");
 }
 
 /**
@@ -271,16 +234,12 @@ static void check_dmesg_restrict(All_Results *ar, Args *cmdline)
  * 0: hardlink creation behavior is unrestricted.
  * 1: hardlinks cannot be created by users if they do not already own the source file, or do not have read/write access to it.
  * @param ar This is the structure containing all the issues enumy has found
- * @param cmdline This is the runtime arguments for enumy 
  */
-static void check_protected_hardlinks(All_Results *ar, Args *cmdline)
+static void check_protected_hardlinks(All_Results *ar)
 {
     char *loc = "/proc/sys/fs/protected_hardlinks";
-    char *issue_name = "sysctl protected_hardlinks";
-    int id = 246;
-
     if (check_location_exists(loc) && read_proc_int(loc) != 1)
-        add_medium_issue(ar, cmdline, id, loc, issue_name);
+        add_medium_issue(ar, loc, "sysctl protected_hardlinks is not restricted");
 }
 
 /**
@@ -288,16 +247,12 @@ static void check_protected_hardlinks(All_Results *ar, Args *cmdline)
  * 0: softlink creation behavior is unrestricted.
  * 1: softlinks cannot be created by users if they do not already own the source file, or do not have read/write access to it.
  * @param ar This is the structure containing all the issues enumy has found
- * @param cmdline This is the runtime arguments for enumy 
  */
-static void check_protected_symlinks(All_Results *ar, Args *cmdline)
+static void check_protected_symlinks(All_Results *ar)
 {
     char *loc = "/proc/sys/fs/protected_softlinks";
-    char *issue_name = "sysctl protected_softlinks";
-    int id = 247;
-
     if (check_location_exists(loc) && read_proc_int(loc) != 1)
-        add_medium_issue(ar, cmdline, id, loc, issue_name);
+        add_medium_issue(ar, loc, "sysctl protected_softlinks is unrestricted");
 }
 
 /**
@@ -305,16 +260,12 @@ static void check_protected_symlinks(All_Results *ar, Args *cmdline)
  * 0: disabled 
  * 1: enabled (should be enabled to prevent syn flooding)
  * @param ar This is the structure containing all the issues enumy has found
- * @param cmdline This is the runtime arguments for enumy 
  */
-static void check_ipv4_tcp_syncookies(All_Results *ar, Args *cmdline)
+static void check_ipv4_tcp_syncookies(All_Results *ar)
 {
     char *loc = "/proc/sys/net/ipv4/tcp_syncookies";
-    char *issue_name = "sysctl tcp_syncookies";
-    int id = 248;
-
     if (check_location_exists(loc) && read_proc_int(loc) != 1)
-        add_medium_issue(ar, cmdline, id, loc, issue_name);
+        add_medium_issue(ar, loc, "sysctl tcp_syncookies not enabled");
 }
 
 /**
@@ -323,16 +274,12 @@ static void check_ipv4_tcp_syncookies(All_Results *ar, Args *cmdline)
  * The ability to forward packets between two networks is only appropriate for systems acting as routers.
  * Should be set to zero
  * @param ar This is the structure containing all the issues enumy has found
- * @param cmdline This is the runtime arguments for enumy 
  */
-static void check_ipv4_ip_forward(All_Results *ar, Args *cmdline)
+static void check_ipv4_ip_forward(All_Results *ar)
 {
     char *loc = "/proc/sys/net/ipv4/ip_forward";
-    char *issue_name = "sysctl ip_forward";
-    int id = 249;
-
     if (check_location_exists(loc) && read_proc_int(loc) != 0)
-        add_medium_issue(ar, cmdline, id, loc, issue_name);
+        add_medium_issue(ar, loc, "sysctl ip_forward is enabled");
 }
 
 /**
@@ -340,16 +287,12 @@ static void check_ipv4_ip_forward(All_Results *ar, Args *cmdline)
  * Prevents bogus ICMP messesages being log, an attacker could use this cause log rotation 
  * This should be enabled with the value 1.
  * @param ar This is the structure containing all the issues enumy has found
- * @param cmdline This is the runtime arguments for enumy 
  */
-static void check_ipv4_icmp_ignore_bogus_error_response(All_Results *ar, Args *cmdline)
+static void check_ipv4_icmp_ignore_bogus_error_response(All_Results *ar)
 {
     char *loc = "/proc/sys/net/ipv4/icmp_ignore_bogus_error_responses";
-    char *issue_name = "sysctl icmp_ignore_bogus_error_responses";
-    int id = 250;
-
     if (check_location_exists(loc) && read_proc_int(loc) != 1)
-        add_medium_issue(ar, cmdline, id, loc, issue_name);
+        add_medium_issue(ar, loc, "sysctl icmp_ignore_bogus_error_responses is enabled");
 }
 
 /**
@@ -359,16 +302,12 @@ static void check_ipv4_icmp_ignore_bogus_error_response(All_Results *ar, Args *c
  * so attackers can compromise your network
  * Should be set to zero
  * @param ar This is the structure containing all the issues enumy has found
- * @param cmdline This is the runtime arguments for enumy 
  */
-static void check_ipv4_accept_source_route(All_Results *ar, Args *cmdline)
+static void check_ipv4_accept_source_route(All_Results *ar)
 {
     char *loc = "/proc/sys/net/ipv4/conf/all/accept_source_route";
-    char *issue_name = "sysctl accept_source_route";
-    int id = 251;
-
     if (check_location_exists(loc) && read_proc_int(loc) != 0)
-        add_medium_issue(ar, cmdline, id, loc, issue_name);
+        add_medium_issue(ar, loc, "sysctl accept_source_route is accepted");
 }
 
 /**
@@ -379,32 +318,25 @@ static void check_ipv4_accept_source_route(All_Results *ar, Args *cmdline)
  * All the computers on the network will respond to the ping message and thereby flood the host at the spoofed source address.
  * This should be enabled with 1.
  * @param ar This is the structure containing all the issues enumy has found
- * @param cmdline This is the runtime arguments for enumy 
  */
-static void check_ipv4_echo_ignore_broadcasts(All_Results *ar, Args *cmdline)
+static void check_ipv4_echo_ignore_broadcasts(All_Results *ar)
 {
     char *loc = "/proc/sys/net/ipv4/icmp_echo_ignore_broadcasts";
-    char *issue_name = "sysctl icmp_echo_ignore_broadcasts";
-    int id = 252;
-
     if (check_location_exists(loc) && read_proc_int(loc) != 1)
-        add_medium_issue(ar, cmdline, id, loc, issue_name);
+        add_medium_issue(ar, loc, "sysctl icmp_echo_ignore_broadcast is not enabled");
 }
 
 /**
  * /proc/sys/kernel/randomize_va_space
  * Aslr should be enabled to the value 2
  * @param ar This is the structure containing all the issues enumy has found
- * @param cmdline This is the runtime arguments for enumy 
  */
-static void check_randomized_va_space(All_Results *ar, Args *cmdline)
+static void check_randomized_va_space(All_Results *ar)
 {
     char *loc = "/proc/sys/kernel/randomize_va_space";
-    char *issue_name = "sysctl randomize_va_space";
-    int id = 253;
 
     if (check_location_exists(loc) && read_proc_int(loc) != 2)
-        add_medium_issue(ar, cmdline, id, loc, issue_name);
+        add_medium_issue(ar, loc, "sysctl radomize_va_space (ASLR) is not set to maximum");
 }
 
 static bool check_location_exists(char *location)
@@ -412,22 +344,29 @@ static bool check_location_exists(char *location)
     return (access(location, F_OK) != -1);
 }
 
+/**
+ * This function will read a file in /proc/sys 
+ * The file at location should contain a single integer value and 
+ * should not be with file that contain a string etc. 
+ * @param location This is the location of the file to read
+ */
 static int read_proc_int(char *location)
 {
-    FILE *fp = fopen(location, "r");
-    int ch;
     char buf[MAXSIZE];
     int buf_loc = 0;
 
+    /* Try and open the file */
+    FILE *fp = fopen(location, "r");
     if (fp == NULL)
     {
         DEBUG_PRINT("Failed to read file at location -> %s\n", location);
         return BAD_READ;
     }
 
+    /* Read the file character by character */
     while (!feof(fp))
     {
-        ch = fgetc(fp);
+        int ch = fgetc(fp);
         if (ch == EOF)
             break;
 
@@ -437,16 +376,20 @@ static int read_proc_int(char *location)
 
     buf[buf_loc] = '\0';
 
+    /* clean up */
     fclose(fp);
+
+    /* Return the integer value */
     return atoi(buf);
 }
 
-static void add_medium_issue(All_Results *ar, Args *cmdline, int id, char *loc, char *issue_name)
+/**
+ * Wrapper function to add the issue to the issue linked list 
+ * @param ar All the results 
+ * @param location This is location of the file 
+ * @param issue_name This is the name to give the issue 
+ */
+static void add_medium_issue(All_Results *ar, char *loc, char *issue_name)
 {
-    Result *new_result = create_new_issue();
-    set_id_and_desc(id, new_result);
-    set_issue_location(loc, new_result);
-    set_issue_name(issue_name, new_result);
-    set_other_info("", new_result);
-    add_new_result_medium(new_result, ar, cmdline);
+    add_issue(MEDIUM, loc, ar, issue_name, "");
 }

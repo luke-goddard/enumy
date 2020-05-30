@@ -14,9 +14,9 @@
 
 /* ============================ PROTOTYPES ============================== */
 
-int break_out_binary_scan(File_Info *fi, All_Results *ar, Args *cmdline);
-static void add_issue_wrapper(int id, char *name, File_Info *fi, All_Results *ar, Args *cmdline);
-static bool compare_and_add_issue(int id, File_Info *fi, All_Results *ar, Args *cmdline, const char *search_str);
+int break_out_binary_scan(File_Info *fi, All_Results *ar);
+static void add_issue_wrapper(char *name, File_Info *fi, All_Results *ar);
+static bool compare_and_add_issue(File_Info *fi, All_Results *ar, const char *search_str);
 
 /* ============================ CONSTS ============================== */
 
@@ -55,16 +55,17 @@ const char *BreakOutBinaries[] = {
 /* ============================ FUNCTIONS ============================== */
 
 /**
- * Should only be called if the file is known to be SUID or GUID or can be run as root e.g $sudo -l 
- * Compares the current file and tests to see if it matches a list of known breakout binaries
- * @param fi current files information 
- * @param ar struct containing all of the results enumy has foundd
- * @param cmdline list of cmdline arguments 
+ * Note you should only call this scan if the current file is know to be an SUID 
+ * 
+ * This scan is used to try and find dangorous SUID binaries that can be exploited 
+ * by the current user to gain a higher privilaged account. This list was largely inspired by 
+ * https://gtfobins.github.io/
+ * @param fi This is the current file that's going to be scanned 
+ * @param ar This is the structure that holds the link lists with the results 
  */
-int break_out_binary_scan(File_Info *fi, All_Results *ar, Args *cmdline)
+int break_out_binary_scan(File_Info *fi, All_Results *ar)
 {
     int const_array_size = sizeof BreakOutBinaries / sizeof(BreakOutBinaries[0]);
-    int id = 0; // TODO REMOVE ME when hash id implemented
 
     /* Itterate through the list of SUID breakout binaries */
     for (int i = 0; i < const_array_size; i++)
@@ -75,7 +76,7 @@ int break_out_binary_scan(File_Info *fi, All_Results *ar, Args *cmdline)
 
         if (
             fi->name[0] == BreakOutBinaries[i][0] &&
-            compare_and_add_issue(id, fi, ar, cmdline, BreakOutBinaries[i]))
+            compare_and_add_issue(fi, ar, BreakOutBinaries[i]))
             return 1;
     }
     return 0;
@@ -84,18 +85,16 @@ int break_out_binary_scan(File_Info *fi, All_Results *ar, Args *cmdline)
 /* ============================ STATIC FUNCTIONS ============================== */
 
 /**
- * @param id issues new id 
  * @param name name of the breakout binary
  * @param fi file information for the file 
  * @param ar struct containing all the results that enumy has found on the system
- * @param cmdline a struct continaing the runtime arguments for enumy 
  * @param search_str the string to compare the current file's name against
  */
-static bool compare_and_add_issue(int id, File_Info *fi, All_Results *ar, Args *cmdline, const char *search_str)
+static bool compare_and_add_issue(File_Info *fi, All_Results *ar, const char *search_str)
 {
     if (strcmp(fi->name, search_str) == 0)
     {
-        add_issue_wrapper(id, fi->name, fi, ar, cmdline);
+        add_issue_wrapper(fi->name, fi, ar);
         return true;
     }
     return false;
@@ -107,15 +106,14 @@ static bool compare_and_add_issue(int id, File_Info *fi, All_Results *ar, Args *
  * @param name name of the breakout binary
  * @param fi file information for the file 
  * @param ar struct containing all the results that enumy has found on the system
- * @param cmdline a struct continaing the runtime arguments for enumy 
  */
-static void add_issue_wrapper(int id, char *name, File_Info *fi, All_Results *ar, Args *cmdline)
+static void add_issue_wrapper(char *name, File_Info *fi, All_Results *ar)
 {
     char issue_name[MAXSIZE];
     char *base_name = " breakout binary found";
 
-    strncpy(issue_name, name, MAXSIZE - strlen(base_name));
+    strncpy(issue_name, name, MAXSIZE - strlen(base_name) - 1);
     strcat(issue_name, base_name);
 
-    add_issue(HIGH, id, fi->location, ar, cmdline, issue_name, "None");
+    add_issue(HIGH, fi->location, ar, issue_name, "None");
 }

@@ -28,8 +28,10 @@ static void execute_command_show_output(char *cmd, char *heading, bool line);
 /* ============================ FUNCTIONS ============================== */
 
 /**
- * This function just runs some bash commands and prints the output to the screen
- * Useful durning a CTF
+ * This is not really a scan but will display the output of some useful bash commands
+ * heavily inspired by the popular LinEnum.sh script found at https://github.com/rebootuser/LinEnum
+ * The idea of this is give the analyst some useful information to look at while waiting for the scan
+ * to complete. Currently the output from this scan is NOT saved in the final results.
  */
 void current_user_scan()
 {
@@ -47,9 +49,16 @@ void current_user_scan()
 
 /* ============================ STATIC FUNCTIONS ============================== */
 
+/**
+ * This function is used to execute system commands such as cat, etc. 
+ * The output from these commands are coppied into a buffer and then printed 
+ * to the screen in a nice format 
+ * @param cmd this is the shell comamnd to execute 
+ * @param heading This is the label to give the output 
+ * @param line this is either ONE_LINE or MULTI_LINE and effects the formating 
+ */
 static void execute_command_show_output(char *cmd, char *heading, bool line)
 {
-    char buf[MAXSIZE];
     FILE *fp = popen(cmd, "r");
 
     /* Format the heading */
@@ -61,9 +70,12 @@ static void execute_command_show_output(char *cmd, char *heading, bool line)
     /* print the actual results */
     if (fp != NULL)
     {
+        char buf[MAXSIZE];
         size_t byte_count = fread(buf, 1, MAXSIZE - 1, fp);
         buf[byte_count] = 0;
+
         printf("%s", buf);
+
         pclose(fp);
         return;
     }

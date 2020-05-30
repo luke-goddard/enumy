@@ -6,7 +6,7 @@
 
 # Enumy
 
-Enumy is portable executable that you drop on target Linux machine during a pentest or CTF in the post exploitation phase. Running enumy will enumerate the box for common security vulnerabilities. Enumy has a Htop like Ncurses interface or a standard interface for dumb reverse shells.  
+Enumy is portable executable that you drop on target Linux machine during a pentest or CTF in the post exploitation phase. Running enumy will enumerate the box for common security vulnerabilities. 
 
 ## Installation
 

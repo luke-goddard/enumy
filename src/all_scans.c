@@ -1,5 +1,7 @@
 /*
-    This files job is to kick of all the scans
+    This files job is to kick of all the scans currently there are two types 
+    of scans FILE scans and SYSTEM scans. The first will scan a file and the 
+    second scans do not require a file for example open ports etc. 
 */
 
 #include "results.h"
@@ -24,9 +26,9 @@
 
 typedef struct Walk_Args
 {
-    char *walk_path;
-    All_Results *all_results;
-    Args *cmdline;
+    char *walk_path;          /* Root location to walk the file system */
+    All_Results *all_results; /* This is a struct to hold the results  */
+    Args *cmdline;            /* This is the command line arguments    */
 } Walk_Args;
 
 /* ============================ GLOBAL VARS ============================== */
@@ -51,15 +53,15 @@ void scan_file_for_issues(Thread_Pool_Args *thread_pool_args)
 {
     struct File_Info *new_file = (File_Info *)malloc(sizeof(File_Info));
     struct stat *stat_buf = malloc(sizeof(struct stat));
-    int findings = 0;
 
+    /* Failed to allocate memory */
     if (stat_buf == NULL)
     {
         if (new_file != NULL)
             free(new_file);
 
         free(thread_pool_args);
-        out_of_memory_err();
+        exit(EXIT_FAILURE);
     }
     if (new_file == NULL)
     {
@@ -67,54 +69,57 @@ void scan_file_for_issues(Thread_Pool_Args *thread_pool_args)
             free(stat_buf);
 
         free(thread_pool_args);
-        out_of_memory_err();
+        exit(EXIT_FAILURE);
     }
 
+    /* Populate the new file structure */
     strncpy(new_file->location, thread_pool_args->file_location, sizeof(new_file->location) - 1);
     strncpy(new_file->name, thread_pool_args->file_name, sizeof(new_file->location) - 1);
     get_file_extension(new_file->extension, thread_pool_args->file_location);
 
     if (lstat(thread_pool_args->file_location, stat_buf) == 0)
-    {
         new_file->stat = stat_buf;
-    }
     else
     {
         DEBUG_PRINT("lstat failed to get information for -> %s\n", new_file->location);
-        goto end;
+        goto END;
     }
 
-    // Ignore symlinks as following them to special files will break scans
+    /* Ignore symlinks as following them to special files will break scans */
     if (S_ISLNK(stat_buf->st_mode))
-        goto end;
+        goto END;
 
-    findings += suid_bit_scan(new_file, thread_pool_args->all_results, thread_pool_args->cmdline);
-    findings += guid_bit_scan(new_file, thread_pool_args->all_results, thread_pool_args->cmdline);
-    findings += capabilities_scan(new_file, thread_pool_args->all_results, thread_pool_args->cmdline);
-    findings += intresting_files_scan(new_file, thread_pool_args->all_results, thread_pool_args->cmdline);
-    findings += core_dump_scan(new_file, thread_pool_args->all_results, thread_pool_args->cmdline);
-    findings += rpath_scan(new_file, thread_pool_args->all_results, thread_pool_args->cmdline);
+    /* ============================ KICK OFF FILE SCANS ============================== */
 
-    lotl_scan(new_file, thread_pool_args->all_results, thread_pool_args->cmdline);
+    suid_bit_scan(new_file, thread_pool_args->all_results);
+    guid_bit_scan(new_file, thread_pool_args->all_results);
+    capabilities_scan(new_file, thread_pool_args->all_results, thread_pool_args->cmdline);
+    intresting_files_scan(new_file, thread_pool_args->all_results);
+    core_dump_scan(new_file, thread_pool_args->all_results);
+    rpath_scan(new_file, thread_pool_args->all_results, thread_pool_args->cmdline);
+    lotl_scan(new_file, thread_pool_args->all_results);
+
+    /* ============================ FINISH FILE SCANS ============================== */
 
     pthread_mutex_lock(&FilesScannedMutex);
     FilesScanned++;
     pthread_mutex_unlock(&FilesScannedMutex);
 
-end:
+END:
     free(stat_buf);
     free(new_file);
     free(thread_pool_args);
 }
 
 /**
- * This kicks of all of the scans for enumy 
- * @param layout a pointer to the ncurses layout
- * @param all_results a structure containing all of the results that enumy finds
- * @param args a structure containing all of the commandline arguments
+ * This is the main entry point to kick off all of the scans. This function will create a 
+ * thread for the file scans and then run the system scans in the current thread 
+ * @param results this is a structure containing linked lists for the results to be stored 
+ * @param args This is the run time arguments specified by the user 
  */
 void start_scan(All_Results *all_results, Args *args)
 {
+    vec_str_t valid_shared_libs;
     pthread_t walk_thread;
     char *retval;
 
@@ -123,27 +128,29 @@ void start_scan(All_Results *all_results, Args *args)
         .all_results = all_results,
         .cmdline = args};
 
-    args->valid_shared_libs = find_shared_libs();
+    /* Populate the standard shared libaries locations */
+    args->valid_shared_libs = &valid_shared_libs;
+    find_shared_libs(args->valid_shared_libs);
 
-    current_user_scan();
+    /* ============================ KICK OFF SYSTEM SCANS ============================== */
 
-    if (!args->enabled_ncurses)
-    {
-        printf("Walking file system at location -> %s\n", args->walk_dir);
-    }
-
-    // Walk the file system in the background while we perform other scans
+    /* Walk the file system in the background while we perform other scans */
     pthread_create(&walk_thread, NULL, create_walk_thread, &walk_args);
 
-    sys_scan(all_results, args);
-    sshd_conf_scan(all_results, args);
+    current_user_scan();
+    sys_scan(all_results);
+    sshd_conf_scan(all_results);
 
+    /* Wait for the file scans to complete  */
     pthread_join(walk_thread, (void **)&retval);
 
-    save_as_json(all_results, args);
+    /* ============================ FINISH SYSTEM SCANS ============================== */
 
+    /* Save results as a JSON file */
+    save_as_json(all_results, args);
     printf("Total files scanned -> %i\n", FilesScanned);
-    free_total_results(all_results);
+
+    /* Cleanup */
     free_shared_libs(args->valid_shared_libs);
 }
 
@@ -151,8 +158,7 @@ void start_scan(All_Results *all_results, Args *args)
 
 /**
  * This is the entry point for the file_system scans. This thread
- * will walk the entire file system and then test each file against
- * tests.
+ * will walk the entire file system and then test each file against tests.
  * @param args This is a pointer the Walk_Args struct
  */
 static void *create_walk_thread(void *args)
@@ -162,9 +168,13 @@ static void *create_walk_thread(void *args)
     char *walk_path = arguments->walk_path;
     Args *cmdline = arguments->cmdline;
 
+    /* Create the threadpool */
     cmdline->fs_threadpool = thpool_init(cmdline->fs_threads);
 
+    /* Walk the file system adding each file to the thread pool */
     walk_file_system(walk_path, all_results, cmdline);
+
+    /* Cleanup */
     thpool_destroy(cmdline->fs_threadpool);
     return NULL;
 }

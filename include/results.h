@@ -1,5 +1,18 @@
 /*
-    CHANGE ME 
+    This header file exposes all the functionality that relates to storing 
+    and fetching results found from running scans.
+
+    The All_Results struct is used exensivly throughout enumy and is where 
+    all the results are stored. The All_Results struct contains pointers 
+    to linked lists where each linked list is grouped together by the severity
+    of the issue found. The following severities exist. 
+
+    High    - Important finding
+    Medium  - Could be important 
+    Low     - Generally something that bad practice but not a major threat
+    Info    - Useful information, security hotspot etc 
+
+    All operations should be thread safe
 */
 
 #pragma once
@@ -11,98 +24,115 @@
 
 /* ============================ DEFINES ============================== */
 
-#define COLOR_HIGH "\033[0;31m"   // red
-#define COLOR_MEDIUM "\033[0;33m" // yellow
-#define COLOR_LOW "\033[0;36m"    // blue
-#define COLOR_INFO "\033[0;32m"   // green
-#define COLOR_BOLD "\033[0;1m"
-#define COLOR_ULINE "\033[0;4m"
-#define COLOR_RESET "\033[0;m"
+#define COLOR_HIGH "\033[0;31m"   /* RED */
+#define COLOR_MEDIUM "\033[0;33m" /* YELLOW */
+#define COLOR_LOW "\033[0;36m"    /* BLUE */
+#define COLOR_INFO "\033[0;32m"   /* GREEN */
+#define COLOR_BOLD "\033[0;1m"    /* Makes font bold */
+#define COLOR_ULINE "\033[0;4m"   /* Underlines the font */
+#define COLOR_RESET "\033[0;m"    /* Resets the above attributes */
 
-#define HIGH 3
-#define MEDIUM 2
-#define LOW 1
-#define INFO 0
-#define NOT_FOUND 99
-#define NO_REFRESH -1
+#define HIGH 3   /* HIGH issue code */
+#define MEDIUM 2 /* MEDIUM issue code */
+#define LOW 1    /* LOW issue code */
+#define INFO 0   /* INFO issue code */
 
-#define FIRST_ID -1
-#define INCOMPLETE_ID -1
+#define NOT_FOUND 999999 /* Used to signify that the result is not found */
+#define FIRST_ID 1       /* Used to initilize the linked lists */
+#define INCOMPLETE_ID 0  /* Used to initilize the linked lists */
 
 /* ============================ STRUCTS ============================== */
 
+/* This struct contains all the information needed to store a result node in the linked list */
 typedef struct Result
 {
-    int issue_id;
-    char issue_name[MAXSIZE];
-    char description[MAXSIZE];
-    char location[MAXSIZE];
-    char other_info[MAXSIZE];
-    bool no_ls;
-    struct Result *previous, *next;
+    unsigned long issue_id;         /* Each issue type should have a uniq id */
+    char issue_name[MAXSIZE];       /* Each issue should have name that corisponds to the id */
+    char location[MAXSIZE];         /* Each issue should have a location attached to it */
+    char other_info[MAXSIZE];       /* Optional other infomation that can be attached to it */
+    bool no_ls;                     /* Optional bool to disable ls -ltra print message */
+    struct Result *previous, *next; /* Pointer to the next and previous result in the linked list */
 } Result;
 
+/* This struct holds all the issues found by enumy at run time */
 typedef struct All_Results
 {
-    Result *high;
-    Result *high_end_node;
-    int high_tot;
+    Result *high;                /* Linked list to all HIGH issues */
+    Result *high_end_node;       /* Last element in the HIGH linked list */
+    int high_tot;                /* Total number of nodes in the HIGH linked list */
+    vec_unsigned_long *high_ids; /* Vector containing all the unique high id numbers */
 
-    Result *medium;
-    Result *medium_end_node;
-    int medium_tot;
+    Result *medium;                /* Linked list to all the MEDIUM issues */
+    Result *medium_end_node;       /* Last element in the MEDIUM linked list */
+    int medium_tot;                /* Total number of nodes in the MEDIUM linked list */
+    vec_unsigned_long *medium_ids; /* Vector containing all the unique medium id numbers */
 
-    Result *low;
-    Result *low_end_node;
-    int low_tot;
+    Result *low;                /* Linked list to all the LOW issues */
+    Result *low_end_node;       /* Last element in the LOW linked list */
+    int low_tot;                /* Total number of nodes in the LOW linked list */
+    vec_unsigned_long *low_ids; /* Vector containing all the unique low id numbers */
 
-    Result *info;
-    Result *info_end_node;
-    int info_tot;
+    Result *info;                /* Linked list to all the INFO issues */
+    Result *info_end_node;       /* Last element in the INFO linked list */
+    int info_tot;                /* Total number of nodes in the INFO linked list */
+    vec_unsigned_long *info_ids; /* Vector containing all the unique info id numbers */
 
-    int gui_requires_refresh;
-    int highest_id;
-    pthread_mutex_t mutex;
+    pthread_mutex_t mutex; /* Makes the structure thread safe */
 } All_Results;
 
 /* ============================ PROTOTYPES ============================== */
 
-void print_heading(char *s);
-void print_heading_oneliner(char *s);
+/* ============================ All_RESULTS FUNCTIONS =================== */
 
+/**
+ * This function will create and initilize the All_Results struct 
+ * This struct contains several linked list for the each issue to be 
+ * stored
+ */
 All_Results *initilize_total_results();
+
+/**
+ * This function is used to free up all of the results in memory 
+ * called to clean up before termination of the program This method 
+ * will dealocate all results in all the linked lists 
+ * @param ar This is the All_Results structure
+ */
 void free_total_results(All_Results *ar);
 
-void add_issue(int severity, int id, char *location, All_Results *ar, Args *cmdline, char *name, char *other);
-Result *create_new_issue();
-void set_id(int issue_id, Result *result_node);
-void set_id_and_desc(int issue_id, Result *result_node);
-void set_issue_name(char *issue_name, Result *result_node);
-void set_issue_description(char *issue_description, Result *result_node);
-void set_issue_location(char *issue_location, Result *result_node);
-void set_other_info(char *issue_location, Result *result_nodee);
-void set_no_ls(Result *result_node);
+/**
+ * This function will get all issues that match the id for a given category
+ * If no issues are found then NULL is returned. 
+ * @param head this is the head of the linked list for the current categroy
+ * @param v this is the vector to add resutls into, the callee should init the vector
+ * @param id this is the issue ID that we're looking for
+ * @param linked_list_len the length of the linked list to search through
+ * @return true if any issues were found, otherwise false
+ */
+bool get_all_issues_with_id(Result *head, vec_void_t *v, unsigned long id, int linked_list_len);
 
-bool add_new_result_high(Result *new_result, All_Results *result, Args *cmdline);
-bool add_new_result_medium(Result *new_result, All_Results *result, Args *cmdline);
-bool add_new_result_low(Result *new_result, All_Results *result, Args *cmdline);
-bool add_new_result_info(Result *new_result, All_Results *result, Args *cmdline);
+/* ============================ RESULT FUNCTIONS ======================== */
 
-Result *get_result_high(All_Results *ar, int index);
-Result *get_result_medium(All_Results *ar, int index);
-Result *get_result_low(All_Results *ar, int index);
-Result *get_result_info(All_Results *ar, int index);
+/**
+ * Wrapper function to add an issue
+ * @param severity This is either HIGH, MEDIUM, LOW, INFO
+ * @param location This is the location of the issue 
+ * @param ar This is the structure containing all of the issues
+ * @param name This is the name of the issue
+ * @param other This is any additional information to report, can be NULL 
+ */
+void add_issue(int severity, char *location, All_Results *ar, char *name, char *other);
 
-void print_all_results(All_Results *all_results);
-void print_high_results(All_Results *all_results);
-void print_medium_results(All_Results *all_results);
-void print_low_results(All_Results *all_results);
-void print_info_results(All_Results *all_results);
+/* ============================ PRINT FUNCTIONS ======================== */
 
-int get_results_total(All_Results *result);
-int get_tot_high(All_Results *result);
-int get_tot_medium(All_Results *result);
-int get_tot_low(All_Results *result);
-int get_tot_info(All_Results *result);
+/**
+ * Prints headings with a banner and color
+ * @param s the string to print to the screen
+ */
+void print_heading(char *s);
 
-int get_all_issues_with_id(All_Results *ar, Vector *v, int id);
+/**
+ * If the headings section is only going to be one line in length 
+ * then we can print it in a nicer format compared to print heading
+ * @param s the string to print
+ */
+void print_heading_oneliner(char *s);

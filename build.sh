@@ -26,6 +26,8 @@ elif [ "$1" == "64bit" ]; then
     ldd output/enumy64
 
 elif [ "$1" == "arm64v8" ]; then
+    echo "Arm will be supported soon" 
+    exit
     echo "building in arm64v8 bit mode"
     rm ./output/enumy64 2> /dev/null
     docker build -t enumy_environment -f docker/Dockerfile.arm64v8 . 

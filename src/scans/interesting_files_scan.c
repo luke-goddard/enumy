@@ -30,29 +30,48 @@
 
 /* ============================ PROTOTYPES ============================== */
 
-int intresting_files_scan(File_Info *fi, All_Results *ar, Args *cmdline);
+int intresting_files_scan(File_Info *fi, All_Results *ar);
 
-static int extension_checker(File_Info *fi, All_Results *ar, Args *cmdline);
-static int file_name_checker(File_Info *fi, All_Results *ar, Args *cmdline);
-static bool check_for_encryption_key(File_Info *fi, All_Results *ar, Args *cmdline);
-static int check_for_writable_shared_object(File_Info *fi, All_Results *ar, Args *cmdline);
+static int extension_checker(File_Info *fi, All_Results *ar);
+static int file_name_checker(File_Info *fi, All_Results *ar);
+static bool check_for_encryption_key(File_Info *fi, All_Results *ar);
+static int check_for_writable_shared_object(File_Info *fi, All_Results *ar);
 static double caclulate_file_entropy(char *file_location);
-static int search_conf_for_pass(File_Info *fi, All_Results *ar, Args *cmdline);
+static int search_conf_for_pass(File_Info *fi, All_Results *ar);
+static int test_if_encryption_key(File_Info *fi, All_Results *ar);
+static int test_if_config_file(File_Info *fi, All_Results *ar);
+
+/* ============================ GLOBAL VARS ============================== */
+
+/* Files that could contain passwords */
+char *ConfigExtensions[] = {
+    "php", "ini", "conf", "config", "configuration"};
+
+/* Files that could contain private keys */
+char *EncryptionKeyWords[] = {
+    "password", "passwords", "key", "id_dsa", "id_ecdsa", "id_rsa", "rsa", "des",
+    "pk", "secret", "dsa", "ecdsa", "private", "privatekey", "private-key"};
+
+int EncryptionKeyWordsSize = (sizeof(EncryptionKeyWords) / sizeof(EncryptionKeyWords[0]));
+int ConfigExtensionsSize = (sizeof(ConfigExtensions) / sizeof(ConfigExtensions[0]));
 
 /* ============================ FUNCTIONS ============================== */
 
 /**
- * Performs all of the intersesting file scans on a given file 
- * @param fi A struct containing the files information 
- * @param ar a struct containing all of the results that enumy has previously found
- * @param cmdline A struct containing the runtime arguments for enumy 
- * @return the number of findings that the scan found
+ * This is more a generic scan that tries to clasify the current file based of trivial things 
+ * like file extensions and the contents of this file. The scan will look for config files containing 
+ * passwords, encryption keys, backup files etc. 
+ * @param fi This is the current file that's going to be scanned 
+ * @param ar This is the structure that holds the link lists with the results 
  */
-int intresting_files_scan(File_Info *fi, All_Results *ar, Args *cmdline)
+int intresting_files_scan(File_Info *fi, All_Results *ar)
 {
     int findings = 0;
-    findings += extension_checker(fi, ar, cmdline);
-    findings += file_name_checker(fi, ar, cmdline);
+
+    findings += test_if_encryption_key(fi, ar);
+    findings += test_if_config_file(fi, ar);
+    findings += extension_checker(fi, ar);
+    findings += file_name_checker(fi, ar);
     return findings;
 }
 
@@ -62,65 +81,23 @@ int intresting_files_scan(File_Info *fi, All_Results *ar, Args *cmdline)
  * This scan kicks off other scans based of the files extension 
  * @param fi A struct containing the files information 
  * @param ar a struct containing all of the results that enumy has previously found
- * @param cmdline A struct containing the runtime arguments for enumy 
- * @param the number of findings that the scan found
  */
-static int extension_checker(File_Info *fi, All_Results *ar, Args *cmdline)
+static int extension_checker(File_Info *fi, All_Results *ar)
 {
     int findings = 0;
 
     switch (fi->extension[0])
     {
-    case 'a':
-        if (strcmp(fi->extension, "aes") == 0)
-            findings += (check_for_encryption_key(fi, ar, cmdline) == true) ? 1 : 0;
-        break;
     case 'b':
         if (strcmp(fi->extension, "bk") == 0)
         {
-            add_issue(INFO, 46, fi->location, ar, cmdline, "Found possible backup file", "");
+            add_issue(INFO, fi->location, ar, "Found possible backup file", "");
             return 1;
         }
         break;
-    case 'c':
-        if ((strcmp(fi->extension, "config") == 0) ||
-            (strcmp(fi->extension, "conf") == 0))
-            findings += search_conf_for_pass(fi, ar, cmdline);
-
-        else if (strcmp(fi->extension, "conf") == 0)
-            findings += search_conf_for_pass(fi, ar, cmdline);
-        break;
-    case 'd':
-        if (strcmp(fi->extension, "des") == 0)
-            findings += (check_for_encryption_key(fi, ar, cmdline) == true) ? 1 : 0;
-
-        break;
-    case 'k':
-        if (strcmp(fi->extension, "key") == 0)
-            findings += (check_for_encryption_key(fi, ar, cmdline) == true) ? 1 : 0;
-        break;
-    case 'p':
-        if (strcmp(fi->extension, "php") == 0)
-            findings += (search_conf_for_pass(fi, ar, cmdline) == true) ? 1 : 0;
-
-        else if (
-            (strcmp(fi->extension, "password") == 0) ||
-            (strcmp(fi->extension, "passwords") == 0) ||
-            (strcmp(fi->extension, "private") == 0) ||
-            (strcmp(fi->extension, "pk") == 0))
-            findings += (check_for_encryption_key(fi, ar, cmdline) == true) ? 1 : 0;
-        break;
-    case 'r':
-        if (strcmp(fi->extension, "rsa") == 0)
-            findings += (check_for_encryption_key(fi, ar, cmdline) == true) ? 1 : 0;
-
-        break;
     case 's':
-        if (strcmp(fi->extension, "secret") == 0)
-            findings += (check_for_encryption_key(fi, ar, cmdline) == true) ? 1 : 0;
-
-        else if (strcmp(fi->extension, "so") == 0)
-            findings += check_for_writable_shared_object(fi, ar, cmdline);
+        if (strcmp(fi->extension, "so") == 0)
+            findings += check_for_writable_shared_object(fi, ar);
 
         break;
     }
@@ -128,35 +105,57 @@ static int extension_checker(File_Info *fi, All_Results *ar, Args *cmdline)
 }
 
 /**
+ * This function will check to see if the file is an encryption key
+ * Based of the files name and extension 
+ * @param fi The file's information 
+ * @param ar The results struct
+ */
+static int test_if_encryption_key(File_Info *fi, All_Results *ar)
+{
+    for (int i = 0; i < EncryptionKeyWordsSize; i++)
+    {
+        if (
+            (strcmp(fi->extension, EncryptionKeyWords[i]) == 0) ||
+            (strcmp(fi->name, EncryptionKeyWords[i]) == 0))
+        {
+            return check_for_encryption_key(fi, ar);
+        }
+    }
+    return 0;
+}
+
+/**
+ * This function will check to see if the file is an configuration file 
+ * Based of the files name and extension 
+ * @param fi The file's information 
+ * @param ar The results struct
+ */
+static int test_if_config_file(File_Info *fi, All_Results *ar)
+{
+    for (int i = 0; i < ConfigExtensionsSize; i++)
+    {
+        if (strcmp(fi->extension, ConfigExtensions[i]) == 0)
+            return search_conf_for_pass(fi, ar);
+    }
+    return 0;
+}
+
+/**
  * Checks to see if the current file has a certain name. If the file does then this 
  * function will kick of the relevant scans for the current file 
  * @param fi A struct containing the files information 
  * @param ar a struct containing all of the results that enumy has previously found
- * @param cmdline A struct containing the runtime arguments for enumy 
  * @return the number of findings that the scan found
  */
-static int file_name_checker(File_Info *fi, All_Results *ar, Args *cmdline)
+static int file_name_checker(File_Info *fi, All_Results *ar)
 {
     int findings = 0;
     switch (fi->name[0])
     {
     case 'c':
+        /* Core dump files */
         if (strcasestr(fi->name, "core") != NULL)
-            findings += core_dump_scan(fi, ar, cmdline);
-        break;
-    case 'i':
-        if (strcasestr(fi->name, "id_rsa") != NULL && strcmp(fi->extension, "pub") != 0)
-        {
-            if (check_for_encryption_key(fi, ar, cmdline))
-                findings++;
-            break;
-        }
-        if (strcasestr(fi->name, "id_dsa") != NULL && strcmp(fi->extension, "pub") != 0)
-        {
-            if (check_for_encryption_key(fi, ar, cmdline))
-                findings++;
-            break;
-        }
+            findings += core_dump_scan(fi, ar);
         break;
     }
     return findings;
@@ -169,17 +168,11 @@ static int file_name_checker(File_Info *fi, All_Results *ar, Args *cmdline)
  * of this file is too loose 
  * @param fi A struct containing the files information 
  * @param ar a struct containing all of the results that enumy has previously found
- * @param cmdline A struct containing the runtime arguments for enumy 
  * @return true if the file is thought to contain an encryption key 
  */
-static bool check_for_encryption_key(File_Info *fi, All_Results *ar, Args *cmdline)
+static bool check_for_encryption_key(File_Info *fi, All_Results *ar)
 {
     float entropy;
-
-    /* Ignore files in test as they give too many false positives */
-    if (strstr(fi->location, "test") ||
-        strstr(fi->location, "integration"))
-        return false;
 
     /* Data probably too big to be a key */
     if (fi->stat->st_size > 100000 || fi->stat->st_size < 100)
@@ -189,7 +182,7 @@ static bool check_for_encryption_key(File_Info *fi, All_Results *ar, Args *cmdli
     if (access(fi->location, R_OK) != 0)
     {
     NONREADABLE:
-        add_issue(INFO, 46, fi->location, ar, cmdline, "None readable potential encryption key", "");
+        add_issue(INFO, fi->location, ar, "None readable potential encryption key", "");
         return true;
     }
 
@@ -205,7 +198,7 @@ static bool check_for_encryption_key(File_Info *fi, All_Results *ar, Args *cmdli
         goto NONREADABLE;
 
     /* Raise the issue */
-    add_issue(HIGH, 45, fi->location, ar, cmdline, "Low entropy file that could be a private key", "");
+    add_issue(HIGH, fi->location, ar, "Low entropy file that could be a private key", "");
     return true;
 }
 
@@ -213,17 +206,13 @@ static bool check_for_encryption_key(File_Info *fi, All_Results *ar, Args *cmdli
  * This function is used to try and determine if a file such as x.rsa is the key
  * or the file is encrypted data. Key's should have low entropy and good encryption
  * should be indistingushable from random data. Note that this only works if the key encoded
- * @param fi A struct containing the files information 
- * @param ar a struct containing all of the results that enumy has previously found
- * @param cmdline A struct containing the runtime arguments for enumy 
+ * @param file_location location of the file to calculate entropy for 
  * @return the files entropy or -1 if entropy calculations failed
  */
 static double caclulate_file_entropy(char *file_location)
 {
     char str[ENTROPY_SIZE];
-    unsigned char current_pos;
     unsigned int len, *hist, histlen, i;
-    int current_fget;
     FILE *f;
     int wherechar[256];
     double entropy = 0;
@@ -238,7 +227,7 @@ static double caclulate_file_entropy(char *file_location)
 
     for (len = 0; !feof(f) && len < ENTROPY_SIZE; len++)
     {
-        current_fget = fgetc(f);
+        int current_fget = fgetc(f);
         if (current_fget == EOF)
             break;
         str[len] = (unsigned char)current_fget;
@@ -256,7 +245,7 @@ static double caclulate_file_entropy(char *file_location)
     hist = (unsigned int *)calloc(len, sizeof(int));
     if (hist == NULL)
     {
-        DEBUG_PRINT("Failed to allocate %li bytes during calloc entropy -> %s\n", (long int)len * sizeof(long int), file_location);
+        DEBUG_PRINT("Failed to allocate %lu bytes during calloc entropy -> %s\n", (long int)len * sizeof(long int), file_location);
         return -1;
     }
 
@@ -268,7 +257,7 @@ static double caclulate_file_entropy(char *file_location)
     /* Populate the histogram */
     for (i = 0; i < len; i++)
     {
-        current_pos = str[i];
+        unsigned char current_pos = str[i];
         if (wherechar[(int)current_pos] == 0)
         {
             wherechar[current_pos] = histlen;
@@ -293,10 +282,9 @@ static double caclulate_file_entropy(char *file_location)
  * contains any references to passwords
  * @param fi A struct containing the files information 
  * @param ar a struct containing all of the results that enumy has previously found
- * @param cmdline A struct containing the runtime arguments for enumy j
  * @return 1 if found any references to passwords else 0
  */
-static int search_conf_for_pass(File_Info *fi, All_Results *ar, Args *cmdline)
+static int search_conf_for_pass(File_Info *fi, All_Results *ar)
 {
     int findings = 0;
     char line[MAXSIZE];
@@ -323,13 +311,12 @@ static int search_conf_for_pass(File_Info *fi, All_Results *ar, Args *cmdline)
             (strcasestr(line, "privatekey") != NULL) ||
             (strcasestr(line, "private-key") != NULL))
         {
-            add_issue(INFO, 47, fi->location, ar, cmdline, "Config file could contain passwords", "");
-            fclose(file);
-            return 1;
+            add_issue(INFO, fi->location, ar, "Config file could contain passwords", "");
+            findings++;
         }
     }
     fclose(file);
-    return 0;
+    return findings;
 }
 
 /**
@@ -337,14 +324,13 @@ static int search_conf_for_pass(File_Info *fi, All_Results *ar, Args *cmdline)
  * object 
  * @param fi A struct containing the files information 
  * @param ar a struct containing all of the results that enumy has previously found
- * @param cmdline A struct containing the runtime arguments for enumy 
  * @return 1 if found to be writable 
  */
-static int check_for_writable_shared_object(File_Info *fi, All_Results *ar, Args *cmdline)
+static int check_for_writable_shared_object(File_Info *fi, All_Results *ar)
 {
     if (has_global_write(fi))
     {
-        add_issue(HIGH, 48, fi->location, ar, cmdline, "World Writable shared object found", "");
+        add_issue(HIGH, fi->location, ar, "World Writable shared object found", "");
         return 1;
     }
     return 0;

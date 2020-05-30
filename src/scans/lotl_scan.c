@@ -31,10 +31,10 @@
 
 /* ============================ PROTOTYPES ============================== */
 
-void lotl_scan(File_Info *fi, All_Results *ar, Args *cmdline);
+void lotl_scan(File_Info *fi, All_Results *ar);
 
-static void search_implementation(int tool_type, File_Info *fi, All_Results *ar, Args *cmdline);
-static void report_issue(File_Info *fi, All_Results *ar, Args *cmdline, int type);
+static void search_implementation(int tool_type, File_Info *fi, All_Results *ar);
+static void report_issue(File_Info *fi, All_Results *ar, int type);
 
 /* ============================ CONSTANTS ============================== */
 
@@ -123,6 +123,19 @@ const char *FileDownloadTools[] = {
     "python", "ruby", "rvim", "scp", "sftp", "smbclient", "socat", "ssh", "tar", "tftp",
     "vim", "wget", "whois"};
 
+/* Sizes of all the arrays stored in an array that can be accesd via the scan code */
+unsigned int ToolsArraySizes[] = {
+    sizeof BuildTools / sizeof(BuildTools[0]),
+    sizeof ShellTools / sizeof(ShellTools[0]),
+    sizeof RevShellTools / sizeof(RevShellTools[0]),
+    sizeof BindShellTools / sizeof(BindShellTools[0]),
+    sizeof NonInterShellTools / sizeof(NonInterShellTools[0]),
+    sizeof FileUploadTools / sizeof(FileUploadTools[0]),
+    sizeof FileReadTools / sizeof(FileReadTools[0]),
+    sizeof FileWriteTools / sizeof(FileWriteTools[0]),
+    sizeof LibLoadTools / sizeof(LibLoadTools[0]),
+    sizeof FileDownloadTools / sizeof(FileDownloadTools[0])};
+
 /* List of pointers to const char * arrays containg the interesting files that we're searching for */
 void *TotalTools[] = {
     &BuildTools, &ShellTools, &RevShellTools, &BindShellTools, &NonInterShellTools,
@@ -131,32 +144,34 @@ void *TotalTools[] = {
 /* ============================ FUNCTIONS ============================== */
 
 /**
- * Entrypoint to the living off the land scan
- * @param fi This is the current file that is being scaned 
- * @param ar This is a struct containing all of the results 
- * @param cmdline This is the run time arguments
+ * (lotl) Living off the land is technique used by hackers to utilize files  
+ * found on the system to reduce noise, increase stealth and perform useful tasks 
+ * This scan will look for common files such as netcat, gcc etc that can be usful 
+ * durning a pentest.
+ * @param fi This is the current file that's going to be scanned 
+ * @param ar This is the structure that holds the link lists with the results 
  */
-void lotl_scan(File_Info *fi, All_Results *ar, Args *cmdline)
+void lotl_scan(File_Info *fi, All_Results *ar)
 {
     if (!has_executable(fi))
         return;
 
     /* Scans that don't require the current file to be SUID */
-    search_implementation(BUILD_TOOLS, fi, ar, cmdline);
-    search_implementation(SHELL, fi, ar, cmdline);
-    search_implementation(REVERSE_SHELL, fi, ar, cmdline);
-    search_implementation(BIND_SHELL, fi, ar, cmdline);
-    search_implementation(NON_INTERACTIVE_BIND_SHELL, fi, ar, cmdline);
-    search_implementation(FILE_UPLOAD, fi, ar, cmdline);
-    search_implementation(FILE_DOWNLOAD, fi, ar, cmdline);
+    search_implementation(BUILD_TOOLS, fi, ar);
+    search_implementation(SHELL, fi, ar);
+    search_implementation(REVERSE_SHELL, fi, ar);
+    search_implementation(BIND_SHELL, fi, ar);
+    search_implementation(NON_INTERACTIVE_BIND_SHELL, fi, ar);
+    search_implementation(FILE_UPLOAD, fi, ar);
+    search_implementation(FILE_DOWNLOAD, fi, ar);
 
     if (!has_suid(fi))
         return;
 
     /* Scans that do require the current file to be SUID */
-    search_implementation(FILE_WRITE, fi, ar, cmdline);
-    search_implementation(FILE_READ, fi, ar, cmdline);
-    search_implementation(LIB_LOAD, fi, ar, cmdline);
+    search_implementation(FILE_WRITE, fi, ar);
+    search_implementation(FILE_READ, fi, ar);
+    search_implementation(LIB_LOAD, fi, ar);
 }
 
 /* ============================ STATIC FUNCTIONS ============================== */
@@ -167,12 +182,9 @@ void lotl_scan(File_Info *fi, All_Results *ar, Args *cmdline)
  * @param type This is the type of scan that is defined above  
  * @param fi This is the current file that is being scaned 
  * @param ar This is a struct containing all of the results 
- * @param cmdline This is the run time arguments
  */
-static void search_implementation(int tool_type, File_Info *fi, All_Results *ar, Args *cmdline)
+static void search_implementation(int tool_type, File_Info *fi, All_Results *ar)
 {
-    int const_array_size;
-
     /* Check that the type exists */
     if (tool_type < 0 || tool_type > TOTAL_CATEGORY_COUNT)
     {
@@ -181,47 +193,15 @@ static void search_implementation(int tool_type, File_Info *fi, All_Results *ar,
     }
 
     /* Set the array to the const char * pointer that is related to the current scan type */
+    unsigned int const_array_size = ToolsArraySizes[tool_type];
     const char **const_array = TotalTools[tool_type];
 
-    /* Get the size of the array we are going to search */
-    /* There must be a better way to do this but its late */
-
-    if (tool_type == BUILD_TOOLS)
-        const_array_size = sizeof BuildTools / sizeof(BuildTools[0]);
-
-    else if (tool_type == SHELL)
-        const_array_size = sizeof ShellTools / sizeof(ShellTools[0]);
-
-    else if (tool_type == REVERSE_SHELL)
-        const_array_size = sizeof RevShellTools / sizeof(RevShellTools[0]);
-
-    else if (tool_type == BIND_SHELL)
-        const_array_size = sizeof BindShellTools / sizeof(BindShellTools[0]);
-
-    else if (tool_type == NON_INTERACTIVE_BIND_SHELL)
-        const_array_size = sizeof NonInterShellTools / sizeof(NonInterShellTools[0]);
-
-    else if (tool_type == FILE_UPLOAD)
-        const_array_size = sizeof FileUploadTools / sizeof(FileUploadTools[0]);
-
-    else if (tool_type == FILE_DOWNLOAD)
-        const_array_size = sizeof FileDownloadTools / sizeof(FileDownloadTools[0]);
-
-    else if (tool_type == FILE_WRITE)
-        const_array_size = sizeof FileWriteTools / sizeof(FileWriteTools[0]);
-
-    else if (tool_type == FILE_READ)
-        const_array_size = sizeof FileReadTools / sizeof(FileReadTools[0]);
-
-    else if (tool_type == LIB_LOAD)
-        const_array_size = sizeof LibLoadTools / sizeof(LibLoadTools[0]);
-
     /* Itterate through the files we're searching for */
-    for (int i = 0; i < const_array_size; i++)
+    for (unsigned int i = 0; i < const_array_size; i++)
     {
         /* if current file matches it then report it  as an issue */
         if ((const_array[i][0] == fi->name[0]) && (strcmp(const_array[i], fi->name) == 0))
-            report_issue(fi, ar, cmdline, tool_type);
+            report_issue(fi, ar, tool_type);
     }
 }
 
@@ -229,38 +209,37 @@ static void search_implementation(int tool_type, File_Info *fi, All_Results *ar,
  * Wrapper function to report an issue 
  * @param fi This is the files information 
  * @param ar This a struct containing the linked list of enumy findings 
- * @param cmdline This is the runtime arguments 
  * @param type This is the type of issue to raise
  */
-static void report_issue(File_Info *fi, All_Results *ar, Args *cmdline, int type)
+static void report_issue(File_Info *fi, All_Results *ar, int type)
 {
     if (type == BUILD_TOOLS)
-        add_issue(MED, 0, fi->location, ar, cmdline, (char *)BuildToolsIssueDesc, "");
+        add_issue(MED, fi->location, ar, (char *)BuildToolsIssueDesc, "");
 
     else if (type == SHELL)
-        add_issue(LOW, 0, fi->location, ar, cmdline, (char *)ShellIssueDesc, "");
+        add_issue(LOW, fi->location, ar, (char *)ShellIssueDesc, "");
 
     else if (type == REVERSE_SHELL)
-        add_issue(MED, 0, fi->location, ar, cmdline, (char *)RevShellIssueDesc, "");
+        add_issue(MED, fi->location, ar, (char *)RevShellIssueDesc, "");
 
     else if (type == BIND_SHELL)
-        add_issue(MED, 0, fi->location, ar, cmdline, (char *)BindShellIssueDesc, "");
+        add_issue(MED, fi->location, ar, (char *)BindShellIssueDesc, "");
 
     else if (type == NON_INTERACTIVE_BIND_SHELL)
-        add_issue(LOW, 0, fi->location, ar, cmdline, (char *)NonInterShellIssueDesc, "");
+        add_issue(LOW, fi->location, ar, (char *)NonInterShellIssueDesc, "");
 
     else if (type == FILE_UPLOAD)
-        add_issue(LOW, 0, fi->location, ar, cmdline, (char *)FileUploadIssueDesc, "");
+        add_issue(LOW, fi->location, ar, (char *)FileUploadIssueDesc, "");
 
     else if (type == FILE_READ)
-        add_issue(HIGH, 0, fi->location, ar, cmdline, (char *)FileReadIssueDesc, "");
+        add_issue(HIGH, fi->location, ar, (char *)FileReadIssueDesc, "");
 
     else if (type == FILE_WRITE)
-        add_issue(HIGH, 0, fi->location, ar, cmdline, (char *)FileWriteIssueDesc, "");
+        add_issue(HIGH, fi->location, ar, (char *)FileWriteIssueDesc, "");
 
     else if (type == LIB_LOAD)
-        add_issue(HIGH, 0, fi->location, ar, cmdline, (char *)LibLoadIssueDesc, "");
+        add_issue(HIGH, fi->location, ar, (char *)LibLoadIssueDesc, "");
 
     else if (type == FILE_DOWNLOAD)
-        add_issue(LOW, 0, fi->location, ar, cmdline, (char *)FileDownloadIssueDesc, "");
+        add_issue(LOW, fi->location, ar, (char *)FileDownloadIssueDesc, "");
 }

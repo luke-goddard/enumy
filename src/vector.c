@@ -1,95 +1,121 @@
-/*
-    CHANGE ME 
-*/
-
-#include <stdio.h>
-#include <stdlib.h>
+/** 
+ * Copyright (c) 2014 rxi
+ *
+ * This library is free software; you can redistribute it and/or modify it
+ * under the terms of the MIT license. See LICENSE for details.
+ */
 
 #include "vector.h"
 
-/* ============================ PROTOTYPES ============================== */
-
-int vector_total(Vector *v);
-void vector_init(Vector *v);
-void vector_add(Vector *v, void *item);
-void vector_set(Vector *v, int index, void *item);
-void vector_delete(Vector *v, int index);
-void *vector_get(Vector *v, int index);
-void vector_free(Vector *v);
-
-static void vector_resize(Vector *v, int capacity);
-
-/* ============================ FUNCTIONS ============================== */
-
-void vector_init(Vector *v)
+int vec_expand_(char **data, int *length, int *capacity, int memsz)
 {
-    v->capacity = (int)VECTOR_INIT_CAPACITY;
-    v->total = (int)0;
-    v->items = (void *)malloc(sizeof(void *) * v->capacity);
-}
-
-int vector_total(Vector *v)
-{
-    return v->total;
-}
-
-void vector_add(Vector *v, void *item)
-{
-    if (v->capacity == v->total)
-        vector_resize(v, v->capacity * 2);
-
-    v->items[v->total++] = item;
-}
-
-void vector_set(Vector *v, int index, void *item)
-{
-    if (index >= 0 && index < v->total)
-        v->items[index] = item;
-}
-
-void *vector_get(Vector *v, int index)
-{
-    if (index >= 0 && index < v->total)
-        return v->items[index];
-
-    return NULL;
-}
-
-void vector_delete(Vector *v, int index)
-{
-    if (index < 0 || index >= v->total)
-        return;
-
-    v->items[index] = NULL;
-
-    for (int i = index; i < v->total - 1; i++)
+    if (*length + 1 > *capacity)
     {
-        v->items[i] = v->items[i + 1];
-        v->items[i + 1] = NULL;
+        void *ptr;
+        int n = (*capacity == 0) ? 1 : *capacity << 1;
+        ptr = realloc(*data, n * memsz);
+        if (ptr == NULL)
+            return -1;
+        *data = ptr;
+        *capacity = n;
     }
-
-    v->total--;
-
-    if (v->total > 0 && v->total == v->capacity / 4)
-        vector_resize(v, v->capacity / 2);
+    return 0;
 }
 
-void vector_free(Vector *v)
+int vec_reserve_(char **data, int *length, int *capacity, int memsz, int n)
 {
-    free(v->items);
-}
-
-/* ============================ STATIC FUNCTIONS ============================== */
-
-static void vector_resize(Vector *v, int capacity)
-{
-    if (capacity == 0)
-        return;
-
-    void **items = realloc(v->items, sizeof(void *) * capacity);
-    if (items)
+    (void)length;
+    if (n > *capacity)
     {
-        v->items = items;
-        v->capacity = capacity;
+        void *ptr = realloc(*data, n * memsz);
+        if (ptr == NULL)
+            return -1;
+        *data = ptr;
+        *capacity = n;
+    }
+    return 0;
+}
+
+int vec_reserve_po2_(
+    char **data, int *length, int *capacity, int memsz, int n)
+{
+    int n2 = 1;
+    if (n == 0)
+        return 0;
+    while (n2 < n)
+        n2 <<= 1;
+    return vec_reserve_(data, length, capacity, memsz, n2);
+}
+
+int vec_compact_(char **data, int *length, int *capacity, int memsz)
+{
+    if (*length == 0)
+    {
+        free(*data);
+        *data = NULL;
+        *capacity = 0;
+        return 0;
+    }
+    else
+    {
+        void *ptr;
+        int n = *length;
+        ptr = realloc(*data, n * memsz);
+        if (ptr == NULL)
+            return -1;
+        *capacity = n;
+        *data = ptr;
+    }
+    return 0;
+}
+
+int vec_insert_(char **data, int *length, int *capacity, int memsz,
+                int idx)
+{
+    int err = vec_expand_(data, length, capacity, memsz);
+    if (err)
+        return err;
+    memmove(*data + (idx + 1) * memsz,
+            *data + idx * memsz,
+            (*length - idx) * memsz);
+    return 0;
+}
+
+void vec_splice_(char **data, int *length, int *capacity, int memsz,
+                 int start, int count)
+{
+    (void)capacity;
+    memmove(*data + start * memsz,
+            *data + (start + count) * memsz,
+            (*length - start - count) * memsz);
+}
+
+void vec_swapsplice_(char **data, int *length, int *capacity, int memsz,
+                     int start, int count)
+{
+    (void)capacity;
+    memmove(*data + start * memsz,
+            *data + (*length - count) * memsz,
+            count * memsz);
+}
+
+void vec_swap_(char **data, int *length, int *capacity, int memsz,
+               int idx1, int idx2)
+{
+    unsigned char *a, *b, tmp;
+    int count;
+    (void)length;
+    (void)capacity;
+    if (idx1 == idx2)
+        return;
+    a = (unsigned char *)*data + idx1 * memsz;
+    b = (unsigned char *)*data + idx2 * memsz;
+    count = memsz;
+    while (count--)
+    {
+        tmp = *a;
+        *a = *b;
+        *b = tmp;
+        a++, b++;
     }
 }

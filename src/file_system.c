@@ -5,7 +5,6 @@
 */
 
 #include "file_system.h"
-#include "utils.h"
 #include "results.h"
 #include "scan.h"
 #include "thpool.h"
@@ -59,9 +58,7 @@ void walk_file_system(char *entry_location, All_Results *all_results, Args *cmdl
 {
     DIR *dir;
     struct dirent *entry;
-    char file_location[MAXSIZE];
-
-    file_location[0] = '\0';
+    char file_location[MAXSIZE - 1] = {0};
 
     dir = opendir(entry_location);
 
@@ -81,22 +78,22 @@ void walk_file_system(char *entry_location, All_Results *all_results, Args *cmdl
             if (entry->d_type & DT_REG)
             {
                 DEBUG_PRINT_EXTRA("Found file %s\n", entry->d_name);
-                strncpy(file_location, entry_location, MAXSIZE - 1);
-                strcat(file_location, entry->d_name);
+                strncpy(file_location, entry_location, sizeof(file_location) - 1);
+                strncat(file_location, entry->d_name, sizeof(file_location) - 1 - strlen(file_location));
                 add_file_to_thread_pool(file_location, entry->d_name, all_results, cmdline);
             }
             else if (entry->d_type & DT_DIR)
             {
                 DEBUG_PRINT_EXTRA("Found folder %s\n", entry->d_name);
-                strncpy(file_location, entry_location, MAXSIZE - 1);
-                strcat(file_location, entry->d_name);
+                strncpy(file_location, entry_location, sizeof(file_location) - 1);
+                strncat(file_location, entry->d_name, sizeof(file_location) - 1 - strlen(file_location));
                 if (
                     strcmp(cmdline->ignore_scan_dir, file_location) == 0 ||
                     strcmp("/proc", file_location) == 0 ||
                     strcmp("/sys", file_location) == 0)
                     continue;
 
-                strcat(file_location, "/");
+                strncat(file_location, "/", sizeof(file_location) - 1 - strlen(file_location));
                 if (strcmp(cmdline->ignore_scan_dir, file_location) == 0)
                     continue;
 
@@ -111,51 +108,92 @@ void walk_file_system(char *entry_location, All_Results *all_results, Args *cmdl
 
 /* ============================ has_* FUNCTIONS ============================== */
 
+/**
+ * Tests to see if other read is enabled 
+ * @param fi this is the current file that's being scanned 
+ */
 bool has_global_read(File_Info *f)
 {
     return f->stat->st_mode & S_IROTH;
 }
 
+/**
+ * Tests to see if other write is enabled 
+ * @param fi this is the current file that's being scanned 
+ */
 bool has_global_write(File_Info *f)
 {
     return f->stat->st_mode & S_IWOTH;
 }
 
+/**
+ * Tests to see if other execute is enabled 
+ * @param fi this is the current file that's being scanned 
+ */
 bool has_global_execute(File_Info *f)
 {
     return f->stat->st_mode & S_IXOTH;
 }
 
+/**
+ * Tests to see if group execute is enabled 
+ * @param fi this is the current file that's being scanned 
+ */
 bool has_group_execute(File_Info *f)
 {
     return f->stat->st_mode & S_IXGRP;
 }
 
+/**
+ * Tests to see if group write is enabled 
+ * @param fi this is the current file that's being scanned 
+ */
 bool has_group_write(File_Info *f)
 {
     return f->stat->st_mode & S_IWGRP;
 }
 
+/**
+ * Tests to see if the current file has SUID bit enabled 
+ * @param fi this is the current file that's being scanned 
+ */
 bool has_suid(File_Info *f)
 {
     return f->stat->st_mode & S_ISUID;
 }
 
+/**
+ * Tests to see if the current file has GUID bit enabled
+ * @param fi this is the current file that's being scanned 
+ */
 bool has_guid(File_Info *f)
 {
     return f->stat->st_mode & S_ISGID;
 }
 
+/**
+ * Tests to see if the current file has a matching extension
+ * @param fi this is the current file that's being scanned 
+ * @param extension this is the extension to check against
+ */
 bool has_extension(File_Info *f, char *extension)
 {
     return strcmp(f->extension, extension);
 }
 
+/**
+ * Tests to see if the group or other can execute the file 
+ * @param fi this is the current file that's being scanned 
+ */
 bool has_executable(File_Info *f)
 {
     return (has_group_execute(f) || has_global_execute(f));
 }
 
+/**
+ * Tests to see if the file is readable by the current process 
+ * @param fi this is the current file that's being scanned 
+ */
 bool can_read(File_Info *fi)
 {
     return access(fi->location, R_OK) == 0;
@@ -172,9 +210,9 @@ bool can_read(File_Info *fi)
 */
 void get_file_extension(char *buf, char *f_name)
 {
-    int size = strlen(f_name);
+    int size = strlen(f_name) - 1;
     int i = 0;
-    char current;
+    buf[0] = '\0';
 
     if (size > MAX_FILE_SIZE - 1)
     {
@@ -184,8 +222,7 @@ void get_file_extension(char *buf, char *f_name)
 
     for (int x = size; x >= 0; x--)
     {
-        current = f_name[x];
-        if (current == '.' && x != 0 && size - x < MAX_EXTENSION_SIZE)
+        if (f_name[x] == '.' && x != 0 && size - x < MAX_EXTENSION_SIZE)
         {
             for (int y = x + 1; y <= size; y++)
             {
@@ -201,17 +238,23 @@ void get_file_extension(char *buf, char *f_name)
 
 /**
  * Given a full path this function returns the file path 
- * DONT forget to free the returned pointer
  * @param full_path the files full path
  * @return a heap pointer containing the file's name
  */
 char *get_file_name(char *full_path)
 {
-    char *s = strrchr(full_path, '/');
-    if (!s)
-        return strdup(full_path);
-    else
-        return strdup(s + 1);
+    char *loc = strrchr(full_path, '/');
+
+    if (loc == NULL)
+    {
+        return NULL;
+    }
+
+    if (strlen(loc + 1) != 0)
+    {
+        return loc + 1;
+    }
+    return NULL;
 }
 
 /**
@@ -250,12 +293,17 @@ static void add_file_to_thread_pool(char *file_location, char *file_name, All_Re
     Thread_Pool_Args *args = malloc(sizeof(Thread_Pool_Args));
 
     if (args == NULL)
-        out_of_memory_err();
+    {
+        printf("Failed to allocate memort when adding file to the thread pool");
+        exit(EXIT_FAILURE);
+    }
 
     DEBUG_PRINT_EXTRA("Scanning file -> %s\n", file_location);
 
-    strncpy(args->file_location, file_location, MAXSIZE - 1);
-    strncpy(args->file_name, file_name, MAXSIZE - 1);
+    memset(args->file_location, '\0', sizeof args->file_location);
+    strncpy(args->file_location, file_location, sizeof(args->file_location));
+    strncpy(args->file_name, file_name, sizeof(args->file_name));
+
     args->all_results = all_results;
     args->cmdline = cmdline;
 

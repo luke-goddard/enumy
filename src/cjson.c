@@ -1691,9 +1691,7 @@ static cJSON_bool add_item_to_array(cJSON *array, cJSON *item)
         else
         {
             while (child->next)
-            {
                 child = child->next;
-            }
             suffix_object(child, item);
             array->child->prev = item;
         }
@@ -1730,9 +1728,7 @@ static cJSON_bool add_item_to_object(cJSON *const object, const char *const stri
     int new_type = cJSON_Invalid;
 
     if ((object == NULL) || (string == NULL) || (item == NULL) || (object == item))
-    {
         return false;
-    }
 
     if (constant_key)
     {

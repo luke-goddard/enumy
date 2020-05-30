@@ -32,23 +32,23 @@
 
 /* ============================ PROTOTYPES ============================== */
 
-int core_dump_scan(File_Info *fi, All_Results *ar, Args *cmdline);
+int core_dump_scan(File_Info *fi, All_Results *ar);
 
-static void add_issue_wrapper(int id, File_Info *fi, int severity, All_Results *ar, Args *cmdline, char *issue_name);
+static void add_issue_wrapper(File_Info *fi, int severity, All_Results *ar, char *issue_name);
 
 /* ============================ FUNCTIONS ============================== */
 
 /**
- * Given a file, this will test to see if the file is an elf and it's
- * parsable. Then we test to see if the file is a core dump file 
- * If the file is a core dump file then we test the permissions of the 
- * file and raise issues 
- * Note this currently cannot parse x64 MSB elf files 
- * @param fi file information struct for the current file 
- * @param ar a struct containing all of the results that enumy has found 
- * @param cmdline a struct containing the command line arguments 
+ * This scan will try and determine if the current file is an elf file. 
+ * There are many different types of ELF files, one of them is called a core dump file 
+ * These files are used durning debugging buy tools like GDB. The contents of a core dump
+ * file contain the running process's memory at the time of a crash. This means that contents 
+ * of these files could contain useful information such as encryption keys stored in memory 
+ * or even better, all the information needed to replicate a crash and develop a zero day exploit 
+ * @param fi This is the current file that's going to be scanned 
+ * @param ar This is the structure that holds the link lists with the results 
  */
-int core_dump_scan(File_Info *fi, All_Results *ar, Args *cmdline)
+int core_dump_scan(File_Info *fi, All_Results *ar)
 {
     int findings = 0;
 
@@ -78,13 +78,13 @@ int core_dump_scan(File_Info *fi, All_Results *ar, Args *cmdline)
         findings++;
 
         if (has_global_read(fi))
-            add_issue_wrapper(44, fi, HIGH, ar, cmdline, "Found a world readable coredump file");
+            add_issue_wrapper(fi, HIGH, ar, "Found a world readable coredump file");
 
         if (can_read(fi))
-            add_issue_wrapper(44, fi, HIGH, ar, cmdline, "Found a readable core dump file");
+            add_issue_wrapper(fi, HIGH, ar, "Found a readable core dump file");
 
         if (fi->stat->st_uid != 0)
-            add_issue_wrapper(44, fi, LOW, ar, cmdline, "Found a coredump file, root is not the owner");
+            add_issue_wrapper(fi, LOW, ar, "Found a coredump file, root is not the owner");
     }
 
     close_elf(elf, fi);
@@ -96,9 +96,12 @@ RET:
 
 /**
  * Wrapper function to raise the issue
+ * @param id The issue id
+ * @param fi The current file's information 
+ * @param ar The struct containing all of the resutls 
+ * @param issue_name The name to save the issue as 
  */
-static void add_issue_wrapper(int id, File_Info *fi, int severity, All_Results *ar, Args *cmdline, char *issue_name)
+static void add_issue_wrapper(File_Info *fi, int severity, All_Results *ar, char *issue_name)
 {
-    // TODO refractor out the id
-    add_issue(severity, id, fi->location, ar, cmdline, issue_name, "");
+    add_issue(severity, fi->location, ar, issue_name, "");
 }

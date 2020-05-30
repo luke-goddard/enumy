@@ -37,106 +37,179 @@
 
 All_Results *initilize_total_results();
 
-Result *create_new_issue();
-Result *get_result_high(All_Results *ar, int index);
-Result *get_result_medium(All_Results *ar, int index);
-Result *get_result_low(All_Results *ar, int index);
-Result *get_result_info(All_Results *ar, int index);
+void add_issue(int severity, char *location, All_Results *ar, char *name, char *other);
 
-void add_issue(int severity, int id, char *location, All_Results *ar, Args *cmdline, char *name, char *other);
-void set_issue_description(char *issue_description, Result *result_node);
-void set_issue_location(char *issue_location, Result *result_nodee);
-void set_issue_name(char *issue_name, Result *result_node);
-void set_id(int issue_id, Result *result_node);
-
-bool add_new_result_medium(Result *new_result, All_Results *result, Args *cmdline);
-bool add_new_result_high(Result *new_result, All_Results *result, Args *cmdline);
-bool add_new_result_info(Result *new_result, All_Results *result, Args *cmdline);
-bool add_new_result_low(Result *new_result, All_Results *result, Args *cmdline);
-
-int get_all_issues_with_id(All_Results *ar, Vector *v, int id);
+bool get_all_issues_with_id(Result *head, vec_void_t *v, unsigned long id, int linked_list_len);
 
 static void add_new_issue(Result *new_result, All_Results *all_results, int category);
-static void log_issue_to_screen(Result *new_result, char *severity);
+static void log_issue_to_screen(Result *new_result, int severity);
 static void free_linked_list(Result *head);
 
-static bool search_category_for_all_id(Result *head, Vector *v, int id, int size);
-static bool is_complete(Result *new_result);
-
-static int count_linked_list_length(Result *first_result);
+static unsigned long hash(char *issue_name);
+static void add_new_issue_to_id_vec(vec_unsigned_long *v, unsigned long id);
 
 /* ============================ ALL_RESULTS FUNCTIONS ============================== */
 
-// Creates the All_Results struct, should only be called once
+/**
+ * This function will create and initilize the All_Results struct 
+ * This struct contains several linked list for the each issue to be 
+ * stored
+ */
 All_Results *initilize_total_results()
 {
     struct All_Results *all_results = (struct All_Results *)malloc(sizeof(struct All_Results));
 
+    /* Create the high issues linked list */
     all_results->high = (struct Result *)malloc(sizeof(struct Result));
     if (all_results->high == NULL)
-        out_of_memory_err();
+    {
+        DEBUG_PRINT("%s\n", "Failed to create the high issues linked list");
+        exit(EXIT_FAILURE);
+    }
 
+    /* Create the medium issues linked list */
     all_results->medium = (struct Result *)malloc(sizeof(struct Result));
     if (all_results->medium == NULL)
     {
+        DEBUG_PRINT("%s\n", "Failed to create the medium issues linked list");
         free(all_results->high);
-        out_of_memory_err();
+        exit(EXIT_FAILURE);
     }
 
+    /* Create the high low linked list */
     all_results->low = (struct Result *)malloc(sizeof(struct Result));
     if (all_results->low == NULL)
     {
+        DEBUG_PRINT("%s\n", "Failed to create the low issues linked list");
         free(all_results->high);
         free(all_results->medium);
-        out_of_memory_err();
+        exit(EXIT_FAILURE);
     }
+
+    /* Create the info issues linked list */
     all_results->info = (struct Result *)malloc(sizeof(struct Result));
     if (all_results->info == NULL)
     {
+        DEBUG_PRINT("%s\n", "Failed to create the info issues linked list");
         free(all_results->high);
         free(all_results->medium);
         free(all_results->low);
-        out_of_memory_err();
+        exit(EXIT_FAILURE);
     }
 
+    /* Create the high issues id vector */
+    all_results->high_ids = (vec_unsigned_long *)malloc(sizeof(vec_unsigned_long));
+    if (all_results->high_ids == NULL)
+    {
+        DEBUG_PRINT("%s\n", "Failed to allocate the high ids vector");
+        free(all_results->high);
+        free(all_results->medium);
+        free(all_results->low);
+        free(all_results->info);
+        exit(EXIT_FAILURE);
+    }
+
+    /* Create the medium issues id vector */
+    all_results->medium_ids = (vec_unsigned_long *)malloc(sizeof(vec_unsigned_long));
+    if (all_results->medium_ids == NULL)
+    {
+        DEBUG_PRINT("%s\n", "Failed to allocate the medium ids vector");
+        free(all_results->high);
+        free(all_results->medium);
+        free(all_results->low);
+        free(all_results->info);
+        free(all_results->high_ids);
+        exit(EXIT_FAILURE);
+    }
+
+    /* Create the low issues id vector */
+    all_results->low_ids = (vec_unsigned_long *)malloc(sizeof(vec_unsigned_long));
+    if (all_results->low_ids == NULL)
+    {
+        DEBUG_PRINT("%s\n", "Failed to allocate the medium ids vector");
+        free(all_results->high);
+        free(all_results->medium);
+        free(all_results->low);
+        free(all_results->info);
+        free(all_results->high_ids);
+        free(all_results->medium_ids);
+        exit(EXIT_FAILURE);
+    }
+
+    /* Create the info issues id vector */
+    all_results->info_ids = (vec_unsigned_long *)malloc(sizeof(vec_unsigned_long));
+    if (all_results->info_ids == NULL)
+    {
+        DEBUG_PRINT("%s\n", "Failed to allocate the medium ids vector");
+        free(all_results->high);
+        free(all_results->medium);
+        free(all_results->low);
+        free(all_results->info);
+        free(all_results->high_ids);
+        free(all_results->medium_ids);
+        free(all_results->low_ids);
+        exit(EXIT_FAILURE);
+    }
+
+    /* ============================ TODO ============================== */
+    /* Linked list should not be initilized with bad values */
+    /* ============================ TODO ============================== */
+
+    /* Assigned linked lists tails */
     all_results->high_end_node = all_results->high;
     all_results->medium_end_node = all_results->medium;
     all_results->low_end_node = all_results->low;
     all_results->info_end_node = all_results->info;
-    all_results->highest_id = 0;
 
+    /* Assigned linked lists total values */
     all_results->high_tot = 0;
     all_results->medium_tot = 0;
     all_results->low_tot = 0;
     all_results->info_tot = 0;
 
-    all_results->gui_requires_refresh = NO_REFRESH;
-
+    /* Setup high linked list */
     all_results->high->issue_id = FIRST_ID;
     all_results->high->next = NULL;
     all_results->high->previous = NULL;
 
+    /* Setup high linked list */
     all_results->medium->issue_id = FIRST_ID;
     all_results->medium->next = NULL;
     all_results->medium->previous = NULL;
 
+    /* Setup high linked list */
     all_results->low->issue_id = FIRST_ID;
     all_results->low->next = NULL;
     all_results->low->previous = NULL;
 
+    /* Setup high linked list */
     all_results->info->issue_id = FIRST_ID;
-    all_results->high->next = NULL;
-    all_results->high->previous = NULL;
+    all_results->info->next = NULL;
+    all_results->info->previous = NULL;
+
+    /* initilize the vectors */
+    vec_init(all_results->high_ids);
+    vec_init(all_results->medium_ids);
+    vec_init(all_results->low_ids);
+    vec_init(all_results->info_ids);
 
     pthread_mutex_init(&all_results->mutex, NULL);
 
     return all_results;
 }
 
+/**
+ * This function is used to free up all of the results in memory 
+ * called to clean up before termination of the program This method 
+ * will dealocate all results in all the linked lists 
+ * @param ar This is the All_Results structure
+ */
 void free_total_results(All_Results *ar)
 {
     if (ar == NULL)
         return;
+
+    pthread_mutex_lock(&ar->mutex);
 
     if (ar->high != NULL)
         free_linked_list(ar->high);
@@ -150,6 +223,19 @@ void free_total_results(All_Results *ar)
     if (ar->info != NULL)
         free_linked_list(ar->info);
 
+    /* Destroy the vectors */
+    vec_deinit(ar->high_ids);
+    vec_deinit(ar->medium_ids);
+    vec_deinit(ar->low_ids);
+    vec_deinit(ar->info_ids);
+
+    /* Free the vector pointers */
+    free(ar->high_ids);
+    free(ar->medium_ids);
+    free(ar->low_ids);
+    free(ar->info_ids);
+
+    pthread_mutex_unlock(&ar->mutex);
     free(ar);
 }
 
@@ -158,307 +244,61 @@ void free_total_results(All_Results *ar)
  * @param severity This is either HIGH, MEDIUM, LOW, INFO
  * @param location This is the location of the issue 
  * @param ar This is the structure containing all of the issues
- * @param cmdline This is the commandline arguments 
  * @param name This is the name of the issue
  * @param other This is any additional information to report, can be NULL 
  */
-void add_issue(int severity, int id, char *location, All_Results *ar, Args *cmdline, char *name, char *other)
-{
-    Result *new_result = create_new_issue();
-    set_id_and_desc(id, new_result);
-    set_other_info(other, new_result);
-    set_issue_location(location, new_result);
-    set_issue_name(name, new_result);
-
-    if (severity == HIGH)
-        add_new_result_high(new_result, ar, cmdline);
-    if (severity == MEDIUM)
-        add_new_result_high(new_result, ar, cmdline);
-    if (severity == LOW)
-        add_new_result_high(new_result, ar, cmdline);
-    if (severity == INFO)
-        add_new_result_high(new_result, ar, cmdline);
-}
-
-int get_results_total(All_Results *result)
-{
-    return (
-        get_tot_high(result) +
-        get_tot_medium(result) +
-        get_tot_low(result) +
-        get_tot_info(result));
-}
-
-int get_tot_high(All_Results *result)
-{
-    struct Result *head_ptr = result->high;
-    return count_linked_list_length(head_ptr);
-}
-
-int get_tot_medium(All_Results *result)
-{
-    struct Result *head_ptr = result->medium;
-    return count_linked_list_length(head_ptr);
-}
-
-int get_tot_low(All_Results *result)
-{
-    struct Result *head_ptr = result->low;
-    return count_linked_list_length(head_ptr);
-}
-
-int get_tot_info(All_Results *result)
-{
-    struct Result *head_ptr = result->info;
-    return count_linked_list_length(head_ptr);
-}
-
-/**
- * This function will get all issues that match the id.
- * If no issues are found then NULL is returned. 
- * @param ar this is the structure containing all of the results that enumy has found
- * @param v this is the vector to add resutls into, the callee should init the vector
- * @param id this is the issue ID that we're looking for
- * @return true if any issues were found, otherwise false
- */
-int get_all_issues_with_id(All_Results *ar, Vector *v, int id)
-{
-    if (search_category_for_all_id(ar->high, v, id, ar->high_tot))
-        return HIGH;
-
-    if (search_category_for_all_id(ar->medium, v, id, ar->medium_tot))
-        return MEDIUM;
-
-    if (search_category_for_all_id(ar->low, v, id, ar->low_tot))
-        return LOW;
-
-    if (search_category_for_all_id(ar->info, v, id, ar->info_tot))
-        return INFO;
-
-    return NOT_FOUND;
-}
-
-/* ============================ RESULT FUNCTIONS ============================== */
-
-// Creates a base issue with default values
-Result *create_new_issue()
+void add_issue(int severity, char *location, All_Results *ar, char *name, char *other)
 {
     struct Result *new_result = (struct Result *)malloc(sizeof(struct Result));
 
     if (new_result == NULL)
-        out_of_memory_err();
+        goto OUT_OF_MEMORY;
+
+    /* ============================ TODO ============================== */
+    /* Memset struct                                                    */
+    /* ============================ TODO ============================== */
 
     /* set the issues to invalid values so we can test if a new issue is commplete */
     new_result->issue_id = INCOMPLETE_ID;
     new_result->issue_name[0] = '\0';
-    new_result->description[0] = '\0';
     new_result->location[0] = '\0';
     new_result->next = NULL;
     new_result->previous = NULL;
     new_result->no_ls = NULL;
 
-    return new_result;
-}
+    /* Set ID */
+    new_result->issue_id = hash(name);
 
-Result *get_result_high(All_Results *ar, int index)
-{
-    Result *current = ar->high;
-    for (int i = 0; i <= get_tot_high(ar) && i < index; i++)
-        current = current->next;
+    /* Set name, loc, other */
+    strncpy(new_result->issue_name, name, MAXSIZE - 1);
+    strncpy(new_result->location, location, MAXSIZE - 1);
+    strncpy(new_result->other_info, other, MAXSIZE - 1);
 
-    return current;
-}
+    /* Insert the issue into the linked list */
+    log_issue_to_screen(new_result, severity);
+    add_new_issue(new_result, ar, severity);
+    return;
 
-Result *get_result_medium(All_Results *ar, int index)
-{
-    Result *current = ar->medium;
-    for (int i = 0; i <= get_tot_medium(ar) && i < index; i++)
-        current = current->next;
-
-    return current;
-}
-
-Result *get_result_low(All_Results *ar, int index)
-{
-    Result *current = ar->low;
-    for (int i = 0; i <= get_tot_low(ar) && i < index; i++)
-        current = current->next;
-
-    return current;
-}
-
-Result *get_result_info(All_Results *ar, int index)
-{
-    Result *current = ar->info;
-    for (int i = 0; i <= get_tot_info(ar) && i < index; i++)
-        current = current->next;
-
-    return current;
-}
-
-// Set id for the base issue
-void set_id(int issue_id, Result *result_node)
-{
-    result_node->issue_id = issue_id;
-}
-
-// Set id for the base issue and the description as a
-// link to the issue writeup on my website with the id being the
-// ancore point to the link
-void set_id_and_desc(int issue_id, Result *result_node)
-{
-    int length = snprintf(NULL, 0, "%d", issue_id);
-    char *str = malloc(length + 1);
-    if (str == NULL)
-    {
-        out_of_memory_err();
-    }
-    snprintf(str, length + 1, "%d", issue_id);
-
-    result_node->issue_id = issue_id;
-    strcpy(result_node->description, URL);
-    strncat(result_node->description, str, MAXSIZE - 1);
-    free(str);
-}
-
-// Set issue name for the base issue
-void set_issue_name(char *issue_name, Result *result_node)
-{
-    strncpy(result_node->issue_name, issue_name, MAXSIZE - 1);
-}
-
-// Set issue description for the base issue
-void set_issue_description(char *issue_description, Result *result_node)
-{
-    strncpy(result_node->description, issue_description, MAXSIZE - 1);
-}
-
-// Set issue location for the base issue
-void set_issue_location(char *issue_location, Result *result_node)
-{
-    strncpy(result_node->location, issue_location, MAXSIZE - 1);
-}
-
-// Set the optional other info
-void set_other_info(char *other_info, Result *result_node)
-{
-    strncpy(result_node->other_info, other_info, MAXSIZE - 1);
+OUT_OF_MEMORY:
+    printf("Failed to allocate memory when adding a new issue\n");
+    exit(EXIT_FAILURE);
 }
 
 /**
- * Disables the result's location from being printed to screen
- * @param result_node the result to chaange 
+ * This function will get all issues that match the id.
+ * If no issues are found then NULL is returned. 
+ * @param head This is the head node of the results that we want to search through
+ * @param v this is the vector to add resutls into, the callee should init the vector
+ * @param id this is the issue ID that we're looking for
+ * @param linked_list_len Length of the linked list to search through
+ * @return true if any issues were found, otherwise false
  */
-void set_no_ls(Result *result_node)
-{
-    result_node->no_ls = true;
-}
-
-// Adds a new fully completed issue to the High linked list
-bool add_new_result_high(Result *new_result, All_Results *all_results, Args *cmdline)
-{
-    if (!is_complete(new_result))
-        return false;
-
-    pthread_mutex_lock(&all_results->mutex);
-    all_results->high_tot++;
-    all_results->gui_requires_refresh = HIGH;
-    pthread_mutex_unlock(&all_results->mutex);
-    add_new_issue(new_result, all_results, HIGH);
-
-    if (cmdline->enabled_ncurses == false)
-    {
-        pthread_mutex_lock(&all_results->mutex);
-        log_issue_to_screen(new_result, "High");
-        pthread_mutex_unlock(&all_results->mutex);
-    }
-
-    return true;
-}
-
-// Adds a new fully completed issue to the Medium linked list
-bool add_new_result_medium(Result *new_result, All_Results *all_results, Args *cmdline)
-{
-    if (!is_complete(new_result))
-        return false;
-
-    pthread_mutex_lock(&all_results->mutex);
-    all_results->medium_tot++;
-    all_results->gui_requires_refresh = MEDIUM;
-    pthread_mutex_unlock(&all_results->mutex);
-    add_new_issue(new_result, all_results, MEDIUM);
-
-    if (cmdline->enabled_ncurses == false)
-    {
-        pthread_mutex_lock(&all_results->mutex);
-        log_issue_to_screen(new_result, "Medium");
-        pthread_mutex_unlock(&all_results->mutex);
-    }
-
-    return true;
-}
-
-// Adds a new fully completed issue to the Low linked list
-bool add_new_result_low(Result *new_result, All_Results *all_results, Args *cmdline)
-{
-    if (!is_complete(new_result))
-        return false;
-
-    pthread_mutex_lock(&all_results->mutex);
-    all_results->low_tot++;
-    all_results->gui_requires_refresh = LOW;
-    pthread_mutex_unlock(&all_results->mutex);
-
-    add_new_issue(new_result, all_results, LOW);
-
-    if (cmdline->enabled_ncurses == false)
-    {
-        pthread_mutex_lock(&all_results->mutex);
-        log_issue_to_screen(new_result, "Low");
-        pthread_mutex_unlock(&all_results->mutex);
-    }
-
-    return true;
-}
-
-// Adds a new fully completed issue to the Info linked list
-bool add_new_result_info(Result *new_result, All_Results *all_results, Args *cmdline)
-{
-    if (!is_complete(new_result))
-        return false;
-
-    pthread_mutex_lock(&all_results->mutex);
-    all_results->info_tot++;
-    all_results->gui_requires_refresh = INFO;
-    pthread_mutex_unlock(&all_results->mutex);
-
-    add_new_issue(new_result, all_results, INFO);
-
-    if (cmdline->enabled_ncurses == false)
-    {
-        pthread_mutex_lock(&all_results->mutex);
-        log_issue_to_screen(new_result, "Info");
-        pthread_mutex_unlock(&all_results->mutex);
-    }
-
-    return true;
-}
-
-/** 
- * This function will search through a given linked list for
- * any issues with the id
- * @param head this is the head of the linked list for the category you want to search
- * @param id this is the issue id that we're searching for
- * @param v this is a vector to store the results in 
- * @param size this is the number of nodes in the linked list
- * @return true if anything was found
- */
-static bool search_category_for_all_id(Result *head, Vector *v, int id, int size)
+bool get_all_issues_with_id(Result *head, vec_void_t *v, unsigned long id, int linked_list_len)
 {
     Result *current = head;
     bool found = false;
 
-    for (int i = 0; i < size; i++)
+    for (int i = 0; i < linked_list_len; i++)
     {
         if (current == NULL)
         {
@@ -468,7 +308,7 @@ static bool search_category_for_all_id(Result *head, Vector *v, int id, int size
 
         if (current->issue_id == id)
         {
-            vector_add(v, current);
+            vec_push(v, (void *)current);
             found = true;
         }
         current = current->next;
@@ -480,6 +320,7 @@ static bool search_category_for_all_id(Result *head, Vector *v, int id, int size
 
 /**
  * Prints headings with a banner and color
+ * @param s the string to print to the screen
  */
 void print_heading(char *s)
 {
@@ -509,6 +350,7 @@ void print_heading(char *s)
 /**
  * If the headings section is only going to be one line in length 
  * then we can print it in a nicer format compared to print heading
+ * @param s the string to print
  */
 void print_heading_oneliner(char *s)
 {
@@ -517,31 +359,26 @@ void print_heading_oneliner(char *s)
 
 /* ============================ STATIC FUNCTIONS ============================== */
 
-// Tests to make sure that issue stuct is completed
-// has side effect of printing incomplete structs
-static bool is_complete(Result *new_result)
+/**
+ * When an issue is added to All_Results through the add_issue function
+ * this will log the issue to the screen. The issue has a severity 
+ * HIGH, MEDIUM, LOW, INFO. This severity will determine what colour to 
+ * print the line as. 
+ * 
+ * This function also uses ls -ltra --colour=always to print the permissions of 
+ * the file. It would be more portable to write are own but there is bigger fish 
+ * to fry right now.
+ * @param new_result this is the new result that is going to be printed to the screen 
+ * @param severity this is the serverity of the issue, HIGH, MEDIUM, LOW, INFO
+ */
+static void log_issue_to_screen(Result *new_result, int severity)
 {
-    if (
-        (new_result->issue_id != INCOMPLETE_ID) &&
-        (new_result->issue_name[0] != '\0') &&
-        ((new_result->location[0] != '\0') || new_result->no_ls))
-        return true;
-
-    DEBUG_PRINT("%s\n", "New issue failed the complitaion check");
-    log_issue_to_screen(new_result, "Failed");
-    return false;
-}
-
-/* Only called if programmer forgot to set all values 
-of the struct before adding to linked list */
-static void log_issue_to_screen(Result *new_result, char *category)
-{
-    char ls_cmd[MAXSIZE * 2];
     char ls_result[MAXSIZE];
-    char *color_code;
+    char *color_code, *category;
 
     if (new_result->no_ls == false)
     {
+        char ls_cmd[MAXSIZE * 2];
         snprintf(ls_cmd, MAXSIZE * 2, "ls -ltra \"%s\" --color=always", new_result->location);
 
         FILE *fp = popen(ls_cmd, "r");
@@ -555,21 +392,31 @@ static void log_issue_to_screen(Result *new_result, char *category)
         pclose(fp);
     }
     else
-    {
         ls_result[0] = '\0';
+
+    if (severity == HIGH)
+    {
+        color_code = COLOR_HIGH;
+        category = "HIGH";
     }
 
-    if (strcmp(category, "High") == 0)
-        color_code = COLOR_HIGH;
-
-    else if (strcmp(category, "Medium") == 0)
+    else if (severity == MEDIUM)
+    {
         color_code = COLOR_MEDIUM;
+        category = "MEDIUM";
+    }
 
-    else if (strcmp(category, "Low") == 0)
+    else if (severity == LOW)
+    {
         color_code = COLOR_LOW;
+        category = "LOW";
+    }
 
     else
+    {
         color_code = COLOR_INFO;
+        category = "INFO";
+    }
 
     printf("Severity: %s%-7s%s Name: %-80s",
            color_code, category, COLOR_RESET,
@@ -577,21 +424,25 @@ static void log_issue_to_screen(Result *new_result, char *category)
     printf("%s", ls_result);
 }
 
-// Finds the correct linked list, if the first element in the link list is the dummy issue
-// then swap it with the new result. Updates the saved end nodes.
+/**
+ * This function actually attaches the new issue to the linked list and also increments 
+ * the total number of issues found. It should be thread ssage 
+ * @param new_result this is the new result to add to the linked list 
+ * @param all_results this is the struct containing all of the linked lists 
+ * @param category this is the category time for the issue HIGH, MEDIUM, LOW, INFO
+ */
 static void add_new_issue(Result *new_result, All_Results *all_results, int category)
 {
     pthread_mutex_lock(&all_results->mutex);
     struct Result *old_head, *old_ptr;
 
-    if (new_result->issue_id > all_results->highest_id)
-        all_results->highest_id = new_result->issue_id;
-
     switch (category)
     {
     case HIGH:
+        all_results->high_tot++;
         old_head = all_results->high_end_node;
         all_results->high_end_node = new_result;
+        add_new_issue_to_id_vec(all_results->high_ids, new_result->issue_id);
         if (all_results->high->issue_id == FIRST_ID)
         {
             old_ptr = all_results->high;
@@ -607,14 +458,17 @@ static void add_new_issue(Result *new_result, All_Results *all_results, int cate
         break;
 
     case MEDIUM:
+        all_results->medium_tot++;
         old_head = all_results->medium_end_node;
         all_results->medium_end_node = new_result;
+        add_new_issue_to_id_vec(all_results->medium_ids, new_result->issue_id);
 
         if (all_results->medium->issue_id == FIRST_ID)
         {
             old_ptr = all_results->medium;
             all_results->medium = new_result;
             all_results->medium_end_node = new_result;
+            free(old_ptr);
         }
         else
         {
@@ -624,8 +478,10 @@ static void add_new_issue(Result *new_result, All_Results *all_results, int cate
         break;
 
     case LOW:
+        all_results->low_tot++;
         old_head = all_results->low_end_node;
         all_results->low_end_node = new_result;
+        add_new_issue_to_id_vec(all_results->low_ids, new_result->issue_id);
 
         if (all_results->low->issue_id == FIRST_ID)
         {
@@ -642,8 +498,10 @@ static void add_new_issue(Result *new_result, All_Results *all_results, int cate
         break;
 
     case INFO:
+        all_results->info_tot++;
         old_head = all_results->info_end_node;
         all_results->info_end_node = new_result;
+        add_new_issue_to_id_vec(all_results->info_ids, new_result->issue_id);
 
         if (all_results->info->issue_id == FIRST_ID)
         {
@@ -662,6 +520,7 @@ static void add_new_issue(Result *new_result, All_Results *all_results, int cate
     default:
         DEBUG_PRINT("Programming error, category was not found -> %i\n", category);
     }
+
     new_result->next = NULL;
     all_results->high_end_node->next = NULL;
     all_results->medium_end_node->next = NULL;
@@ -670,27 +529,50 @@ static void add_new_issue(Result *new_result, All_Results *all_results, int cate
     pthread_mutex_unlock(&all_results->mutex);
 }
 
-static int count_linked_list_length(Result *first_result)
-{
-    int tot = 0;
-    struct Result *next_item = first_result;
-
-    while (next_item != NULL)
-    {
-        tot++;
-        next_item = next_item->next;
-    }
-    return tot;
-}
-
+/**
+ * This function is used to clear out a linked list. It works by 
+ * 
+ * freeing each node in the linked list.
+ * @param head this is the first node in the linked list 
+ */
 static void free_linked_list(Result *head)
 {
-    struct Result *tmp = head;
-
     while (head != NULL)
     {
-        tmp = head;
+        struct Result *tmp = head;
         head = head->next;
         free(tmp);
     }
+}
+
+/**
+ * Hash function used to convert issue_name to issue_id 
+ * @param issue_name name of the issue to get the hash for 
+ */
+static unsigned long hash(char *issue_name)
+{
+    unsigned long hash = 5381;
+    int c;
+
+    while ((c = *issue_name++))
+        hash = ((hash << 5) + hash) + c;
+
+    return hash;
+}
+
+/**
+ * This function will try and find the issue id inside of the vector
+ * if it's not found then we will add it to the vector. We do this to
+ * make searching via ID easier when it comes to report the results 
+ * @param v This is the vector containg all unique issue id's for the current issue category
+ * @param id This is the id to potentially add
+ */
+static void add_new_issue_to_id_vec(vec_unsigned_long *v, unsigned long id)
+{
+    for (int i = 0; i < v->length; i++)
+    {
+        if (v->data[i] == id)
+            return;
+    }
+    vec_push(v, id);
 }

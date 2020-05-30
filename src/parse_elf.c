@@ -23,7 +23,6 @@
 #include "main.h"
 #include "results.h"
 #include "scan.h"
-#include "utils.h"
 #include "elf_parsing.h"
 #include "debug.h"
 
@@ -51,7 +50,6 @@ static inline Elf_Ehdr *elf_header(const void *map_start);
 static inline Elf_Shdr *elf_sheader(const void *map_start);
 static inline Elf_Shdr *elf_section(const void *map_start, int idx);
 static inline Elf_Phdr *elf_program_header(Elf_File *elf);
-static inline char *elf_shstr_table(const void *map_start);
 static Elf_Phdr *get_dynamic_sections_program_header(Elf_File *elf);
 
 /* ============================ FUNCTIONS ============================== */
@@ -63,12 +61,14 @@ static Elf_Phdr *get_dynamic_sections_program_header(Elf_File *elf);
  */
 int has_elf_magic_bytes(File_Info *fi)
 {
+    /* ============================ TODO ============================== */
     // TODO Need to re write this function as there are a few things
     // Wrong with it
     // Check the size of the file first
     // Get rid of the endian stuff
     // Use memcpy
     // Get the architecture from the ELF headers
+    /* ============================ TODO ============================== */
     const int magic_size = 5;
 
     unsigned char values[5] = {0x00, 0x00, 0x00, 0x00};
@@ -160,12 +160,12 @@ Elf_File *parse_elf(File_Info *fi)
 
     /* Map the elf file into memory */
     elf->address = mmap(NULL, fi->stat->st_size, PROT_READ, MAP_PRIVATE, fd, 0);
+    close(fd);
     if (elf->address == MAP_FAILED)
     {
-        DEBUG_PRINT("%s\n", "Fauled to map binary into memory");
-        goto FAILURE;
+        DEBUG_PRINT("%s\n", "Failed to map binary into memory");
+        goto FAILURE_CLOSE_ELF;
     }
-    close(fd);
 
     /* Populate the Elf_Files struct pointers */
     elf->fi = fi;
@@ -239,12 +239,19 @@ Tag_Array *search_dynamic_for_value(Elf_File *elf, Tag tag)
     if (elf->dynamic_strings == 0 || elf->dynamic_header == NULL)
         return NULL;
 
+    /* ============================ TODO ============================== */
+    /* elf->address is a void ptr, so pointer arithmatics is undefined  */
+    /* ============================ TODO ============================== */
+
     /* We search twice so we need two pointers */
     Elf_Internal_Dyn *entry = elf->dynamic_header->p_offset + elf->address;
     Elf_Internal_Dyn *entry2 = elf->dynamic_header->p_offset + elf->address;
 
+    /* ============================ TODO ============================== */
+    /* This function could fail is no DT_NULL is found  (corrupted elf) */
+    /* ============================ TODO ============================== */
+
     /* Loop through the dynamic section until we find DT_NULL, this signifies that we've reached the end */
-    // TODO corrupt ELF Files could break this if no DT_NULL is present
     for (; (char *)(entry + 2) <= (char *)(elf->dynamic_header->p_offset + elf->address + elf->dynamic_header->p_filesz); entry++)
     {
         /* Current tag is equal to the search value */
@@ -265,7 +272,10 @@ Tag_Array *search_dynamic_for_value(Elf_File *elf, Tag tag)
     /* Allocate memory for the return results */
     Tag_Array *findings = malloc(sizeof(Tag_Array) * number_of_findings);
     if (findings == NULL)
-        out_of_memory_err();
+    {
+        printf("Failed allocating memory for the tag_array");
+        exit(EXIT_FAILURE);
+    }
 
     /* Set the array size */
     findings[0].size = number_of_findings;
@@ -327,19 +337,6 @@ static inline Elf_Shdr *elf_sheader(const void *map_start)
 static inline Elf_Shdr *elf_section(const void *map_start, int idx)
 {
     return &elf_sheader(map_start)[idx];
-}
-
-/**
- * e_shstrndx This member holds the section header table index of the entry associated with the section name string table.
- * If the file has no section name string table, this member holds the value SHN_UNDEF.
- * @param map_start This is the base address of the mmaped ELF file 
- * @return The offset for the string table 
- */
-static inline char *elf_shstr_table(const void *map_start)
-{
-    if (elf_header(map_start)->e_shstrndx == SHN_UNDEF)
-        return NULL;
-    return (char *)map_start + (int)(elf_section(map_start, elf_header(map_start)->e_shstrndx))->sh_offset;
 }
 
 /**

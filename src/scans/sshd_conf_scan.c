@@ -19,45 +19,53 @@
 
 /* ============================ PROTOTYPES ============================== */
 
-void sshd_conf_scan(All_Results *all_results, Args *cmdline);
+void sshd_conf_scan(All_Results *all_results);
 
-static int search_vector(Vector *v, char *key);
+static int search_vector(vec_str_t *v, char *key);
 static void strip_trailing_comments(char *line);
 static bool is_line_commented(char *current_line);
 
-static void permit_empty_password_scan(All_Results *ar, Args *cmdline, Vector *v);
-static void banner_enabled_scan(All_Results *ar, Args *cmdline, Vector *v);
-static void host_based_auth_scan(All_Results *ar, Args *cmdline, Vector *v);
-static void gss_api_auth_scan(All_Results *ar, Args *cmdline, Vector *v);
-static void permit_root_login_scan(All_Results *ar, Args *cmdline, Vector *v);
-static void x11_forwarding_scan(All_Results *ar, Args *cmdline, Vector *v);
-static bool read_config_file(Vector *v, char *location);
+static void permit_empty_password_scan(All_Results *ar, vec_str_t *v);
+static void banner_enabled_scan(All_Results *ar, vec_str_t *v);
+static void host_based_auth_scan(All_Results *ar, vec_str_t *v);
+static void gss_api_auth_scan(All_Results *ar, vec_str_t *v);
+static void permit_root_login_scan(All_Results *ar, vec_str_t *v);
+static void x11_forwarding_scan(All_Results *ar, vec_str_t *v);
+static bool read_config_file(vec_str_t *v, char *location);
 
 /* ============================ FUNCTIONS ============================== */
 
 /**
- * This scan is used to find misconfiguration inside of the SSHD configuration files. Example issues 
- * could be that login without a password is allowed
- * @param all_results this is a structure containing all the results that enumy has previously found
- * @param cmdline this is the list of runtime arguments passed at the command line 
+ * SSH is widely used and it very common for ssh to be configured insecurly
+ * this scan will look for common misconfiguration such as being able to log 
+ * into SSH directly as root user
+ * @param all_results This is the structure that holds the link lists with the results 
  */
-void sshd_conf_scan(All_Results *all_results, Args *cmdline)
+void sshd_conf_scan(All_Results *all_results)
 {
-    Vector lines;
-    vector_init(&lines);
+    vec_str_t lines;
+    vec_init(&lines);
 
+    /* Try and read the SSH config file into a vector */
     if (!read_config_file(&lines, SSHD_CONF_LOC))
     {
         DEBUG_PRINT("%s", "Skipping sshd config test\n");
         return;
     }
 
-    permit_empty_password_scan(all_results, cmdline, &lines);
-    banner_enabled_scan(all_results, cmdline, &lines);
-    host_based_auth_scan(all_results, cmdline, &lines);
-    gss_api_auth_scan(all_results, cmdline, &lines);
-    permit_root_login_scan(all_results, cmdline, &lines);
-    x11_forwarding_scan(all_results, cmdline, &lines);
+    /* Run the scans using the content of the vector */
+    permit_empty_password_scan(all_results, &lines);
+    banner_enabled_scan(all_results, &lines);
+    host_based_auth_scan(all_results, &lines);
+    gss_api_auth_scan(all_results, &lines);
+    permit_root_login_scan(all_results, &lines);
+    x11_forwarding_scan(all_results, &lines);
+
+    /* Destroy the vectos */
+    for (int i = 0; i < lines.length; i++)
+        free(lines.data[i]);
+
+    vec_deinit(&lines);
 }
 
 /* ============================ STATIC FUNCTIONS ============================== */
@@ -67,25 +75,16 @@ void sshd_conf_scan(All_Results *all_results, Args *cmdline)
  * When password authentication is allowed, it specifies whether the server allows login to accounts with empty password strings.
  * The default is no.
  * @param ar this is a struct containing all of the previously found results 
- * @param cmdline this is a list of cmdline arguments passed at runtime
+ * @param v this is the vector containing all of the config information 
  */
-static void permit_empty_password_scan(All_Results *ar, Args *cmdline, Vector *v)
+static void permit_empty_password_scan(All_Results *ar, vec_str_t *v)
 {
-    char *name = "SSHD Access via empty password is allowed";
     int index = search_vector(v, "PermitEmptyPassword");
     if (index == -1)
         return;
 
-    if (strstr((char *)vector_get(v, index), " yes") != NULL)
-    {
-        int id = 265;
-        Result *new_result = create_new_issue();
-        set_id_and_desc(id, new_result);
-        set_issue_location(SSHD_CONF_LOC, new_result);
-        set_issue_name(name, new_result);
-        set_other_info((char *)vector_get(v, index), new_result);
-        add_new_result_high(new_result, ar, cmdline);
-    }
+    if (strstr(v->data[index], " yes") != NULL)
+        add_issue(HIGH, SSHD_CONF_LOC, ar, "SSHD Access via empty password is allowed", v->data[index]);
 }
 
 /**
@@ -93,34 +92,19 @@ static void permit_empty_password_scan(All_Results *ar, Args *cmdline, Vector *v
  * When password authentication is allowed, it specifies whether the server allows login to accounts with empty password strings.
  * The default is no.
  * @param ar this is a struct containing all of the previously found results 
- * @param cmdline this is a list of cmdline arguments passed at runtime
+ * @param v this is the vector containing all of the config information 
  */
-static void banner_enabled_scan(All_Results *ar, Args *cmdline, Vector *v)
+static void banner_enabled_scan(All_Results *ar, vec_str_t *v)
 {
-    char *name = "SSHD No SSH warning banner";
     int index = search_vector(v, "Banner");
 
     if (index == -1)
     {
-        int id = 266;
-        Result *new_result = create_new_issue();
-        set_id_and_desc(id, new_result);
-        set_issue_location(SSHD_CONF_LOC, new_result);
-        set_issue_name(name, new_result);
-        set_other_info("", new_result);
-        add_new_result_low(new_result, ar, cmdline);
+        add_issue(LOW, SSHD_CONF_LOC, ar, "SSHD SSH warning banner not configured", "");
         return;
     }
-    if (strstr((char *)vector_get(v, index), " none") != NULL)
-    {
-        int id = 266;
-        Result *new_result = create_new_issue();
-        set_id_and_desc(id, new_result);
-        set_issue_location(SSHD_CONF_LOC, new_result);
-        set_issue_name(name, new_result);
-        set_other_info((char *)vector_get(v, index), new_result);
-        add_new_result_high(new_result, ar, cmdline);
-    }
+    if (strstr(v->data[index], " none") != NULL)
+        add_issue(HIGH, SSHD_CONF_LOC, ar, "SSHD NO SSH warning banner", v->data[index]);
 }
 
 /**
@@ -128,27 +112,17 @@ static void banner_enabled_scan(All_Results *ar, Args *cmdline, Vector *v)
  * Rational SSH trust relationships mean a compromise on one host can allow an attacker to move trivially to other hosts.
  * HostbasedAuthentication default value is no 
  * @param ar this is a struct containing all of the previously found results 
- * @param cmdline this is a list of cmdline arguments passed at runtime
+ * @param v this is the vector containing all of the config information 
  */
-static void host_based_auth_scan(All_Results *ar, Args *cmdline, Vector *v)
+static void host_based_auth_scan(All_Results *ar, vec_str_t *v)
 {
-    char *name = "SSHD HostBasedAuthentication is enabled";
     int index = search_vector(v, "Banner");
 
     if (index == -1)
         return;
 
-    if (strstr((char *)vector_get(v, index), " yes") != NULL)
-    {
-        int id = 267;
-        Result *new_result = create_new_issue();
-        set_id_and_desc(id, new_result);
-        set_issue_location(SSHD_CONF_LOC, new_result);
-        set_issue_name(name, new_result);
-        set_other_info((char *)vector_get(v, index), new_result);
-        add_new_result_high(new_result, ar, cmdline);
-        return;
-    }
+    if (strstr(v->data[index], " yes") != NULL)
+        add_issue(HIGH, SSHD_CONF_LOC, ar, "SSHD HostBasedAuthentication is enabled", v->data[index]);
 }
 
 /**
@@ -158,27 +132,17 @@ static void host_based_auth_scan(All_Results *ar, Args *cmdline, Vector *v)
  * Allowing GSSAPI authentication through SSH exposes the system's GSSAPI to remote hosts,
  * increasing the attack surface of the system.
  * @param ar this is a struct containing all of the previously found results 
- * @param cmdline this is a list of cmdline arguments passed at runtime
+ * @param v this is the vector containing all of the config information 
  */
-static void gss_api_auth_scan(All_Results *ar, Args *cmdline, Vector *v)
+static void gss_api_auth_scan(All_Results *ar, vec_str_t *v)
 {
-    char *name = "SSHD GSSAPIAuthentication is enabled";
     int index = search_vector(v, "GSSAPIAuthentication");
 
     if (index == -1)
         return;
 
-    if (strstr((char *)vector_get(v, index), " yes") != NULL)
-    {
-        int id = 268;
-        Result *new_result = create_new_issue();
-        set_id_and_desc(id, new_result);
-        set_issue_location(SSHD_CONF_LOC, new_result);
-        set_issue_name(name, new_result);
-        set_other_info((char *)vector_get(v, index), new_result);
-        add_new_result_low(new_result, ar, cmdline);
-        return;
-    }
+    if (strstr(v->data[index], " yes") != NULL)
+        add_issue(LOW, SSHD_CONF_LOC, ar, "SSHD GSSAPIAuthentication is enabled", v->data[index]);
 }
 
 /**
@@ -188,61 +152,34 @@ static void gss_api_auth_scan(All_Results *ar, Args *cmdline, Vector *v)
  * The default value for this is prohibit-password this is not the most 
  * secure value and should be set to "no"
  * @param ar this is a struct containing all of the previously found results 
- * @param cmdline this is a list of cmdline arguments passed at runtime
+ * @param v this is the vector containing all of the config information 
  */
-static void permit_root_login_scan(All_Results *ar, Args *cmdline, Vector *v)
+static void permit_root_login_scan(All_Results *ar, vec_str_t *v)
 {
-    int id = 269;
     int index = search_vector(v, "PermitRootLogin");
 
     if (index == -1)
-    {
-        char *name = "SSHD PermitRootLogin is set to prohibit-password";
-        Result *new_result = create_new_issue();
-        set_id_and_desc(id, new_result);
-        set_issue_location(SSHD_CONF_LOC, new_result);
-        set_issue_name(name, new_result);
-        add_new_result_medium(new_result, ar, cmdline);
-        return;
-    }
-    if (strstr((char *)vector_get(v, index), " no") != NULL)
-    {
-        char *name = "SSHD PermitRootLogin configurition could be more secure";
-        Result *new_result = create_new_issue();
-        set_id_and_desc(id, new_result);
-        set_issue_location(SSHD_CONF_LOC, new_result);
-        set_issue_name(name, new_result);
-        set_other_info((char *)vector_get(v, index), new_result);
-        add_new_result_medium(new_result, ar, cmdline);
-        return;
-    }
+        add_issue(MEDIUM, SSHD_CONF_LOC, ar, "SSHD PermitRootLogin is set to prohibit-password", "");
+
+    if (strstr(v->data[index], " no") != NULL)
+        add_issue(MEDIUM, SSHD_CONF_LOC, ar, "SSHD PermitRootLogin configuration coudld be more secure", v->data[index]);
 }
 
 /**
  * X11 forwarding allows GUI use over SSH. This should not be enabled unless
  * required. The default value is no
  * @param ar this is a struct containing all of the previously found results 
- * @param cmdline this is a list of cmdline arguments passed at runtime
+ * @param v this is the vector containing all of the config information 
  */
-static void x11_forwarding_scan(All_Results *ar, Args *cmdline, Vector *v)
+static void x11_forwarding_scan(All_Results *ar, vec_str_t *v)
 {
-    int id = 270;
     int index = search_vector(v, "X11Forwarding");
 
     if (index == -1)
         return;
 
-    if (strstr((char *)vector_get(v, index), " yes") != NULL)
-    {
-        char *name = "SSHD X11Forwarding is enabled";
-        Result *new_result = create_new_issue();
-        set_id_and_desc(id, new_result);
-        set_issue_location(SSHD_CONF_LOC, new_result);
-        set_issue_name(name, new_result);
-        set_other_info((char *)vector_get(v, index), new_result);
-        add_new_result_medium(new_result, ar, cmdline);
-        return;
-    }
+    if (strstr(v->data[index], " yes") != NULL)
+        add_issue(MEDIUM, SSHD_CONF_LOC, ar, "SSHD X11Forwarding is enabled", v->data[index]);
 }
 
 /**
@@ -250,37 +187,39 @@ static void x11_forwarding_scan(All_Results *ar, Args *cmdline, Vector *v)
  * @param v This is a vector that will be initiliazed an hold the results 
  * @param location this is the location of the file that's going to be read
  */
-static bool read_config_file(Vector *v, char *location)
+static bool read_config_file(vec_str_t *v, char *location)
 {
     FILE *fp;
     char buffer[MAXSIZE];
     char *buffer_cpy;
 
-    if (access(location, F_OK) == -1)
-    {
-        DEBUG_PRINT("SSHD config file could not be found at location -> %s\n", location);
-        return false;
-    }
-
+    /* Open the file */
     fp = fopen(location, "r");
-
     if (fp == NULL)
     {
         DEBUG_PRINT("SSHD config file exists at location -> %s but is not readable\n", location);
         return false;
     }
 
+    /* Read the file line by line adding the lines */
     while (fgets(buffer, MAXSIZE - 1, fp))
     {
+        /* Skip commented lines */
         if (is_line_commented(buffer) == true)
             continue;
 
+        /* Truncate uncessicery comments */
         strip_trailing_comments(buffer);
 
         if (strcmp(buffer, "\n") != 0)
         {
             buffer_cpy = strdup(buffer);
-            vector_add(v, buffer_cpy);
+            if (buffer_cpy == NULL)
+            {
+                DEBUG_PRINT("%s\n", "Failed to allocate memory while reading the sshd configuration file");
+                continue;
+            }
+            vec_push(v, buffer_cpy);
         }
     }
     fclose(fp);
@@ -296,15 +235,17 @@ static bool read_config_file(Vector *v, char *location)
 static bool is_line_commented(char *current_line)
 {
     int len = strlen(current_line);
-    char current_char;
     char space = ' ';
     char tab = '\t';
     char ret = '\r';
     char com = '#';
 
+    /* Loop through the current line */
     for (int i = 0; i < len; i++)
     {
-        current_char = current_line[i];
+        char current_char = current_line[i];
+
+        /* Ignore whitespace */
         if (
             current_char == space ||
             current_char == tab ||
@@ -312,6 +253,7 @@ static bool is_line_commented(char *current_line)
         {
             continue;
         }
+        /* Line is commented */
         if (current_char == com)
             return true;
 
@@ -327,12 +269,11 @@ static bool is_line_commented(char *current_line)
 static void strip_trailing_comments(char *line)
 {
     int len = strlen(line);
-    char current_character;
 
+    /* Loop through current line */
     for (int i = 0; i < len; i++)
     {
-        current_character = line[i];
-        if (current_character == '#')
+        if (line[i] == '#')
         {
             line[i] = '\0';
             return;
@@ -347,13 +288,12 @@ static void strip_trailing_comments(char *line)
  * @param key the value that we're searching for 
  * @return -1 if not found or the index in the vector if found
  */
-static int search_vector(Vector *v, char *key)
+static int search_vector(vec_str_t *v, char *key)
 {
-    int vector_size = vector_total(v);
-
-    for (int i = vector_size - 1; i >= 0; i--)
+    /* Loop through the vector */
+    for (int i = v->length - 1; i >= 0; i--)
     {
-        if (strstr((char *)vector_get(v, i), key) != NULL)
+        if (strstr(v->data[i], key) != NULL)
             return i;
     }
     return -1;

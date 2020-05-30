@@ -32,67 +32,62 @@ char *KnownGoodSuids[] = {
 
 /* ============================ PROTOTYPES ============================== */
 
-int suid_bit_scan(File_Info *fi, All_Results *ar, Args *cmdline);
-int guid_bit_scan(File_Info *fi, All_Results *ar, Args *cmdline);
+int suid_bit_scan(File_Info *fi, All_Results *ar);
+int guid_bit_scan(File_Info *fi, All_Results *ar);
 
 static bool has_normal_suid_name(File_Info *fi);
-static bool has_suid_and_global_write(File_Info *fi, All_Results *ar, Args *cmdline);
-static bool has_suid_and_group_write(File_Info *fi, All_Results *ar, Args *cmdline);
-static bool has_guid_and_global_write(File_Info *fi, All_Results *ar, Args *cmdline);
-static bool has_guid_and_group_write(File_Info *fi, All_Results *ar, Args *cmdline);
+static bool has_suid_and_global_write(File_Info *fi, All_Results *ar);
+static bool has_suid_and_group_write(File_Info *fi, All_Results *ar);
+static bool has_guid_and_global_write(File_Info *fi, All_Results *ar);
+static bool has_guid_and_group_write(File_Info *fi, All_Results *ar);
 
 /* ============================ FUNCTIONS ============================== */
 
 /**
- * Tests to see if the file is a SUID file. If it's then it kicks of various 
- * SUID file scans such as breakout binaries and permissions checks
- * @param fi A struct containing the files information 
- * @param ar a struct containing all of the results that enumy has previously found
- * @param cmdline A struct containing the runtime arguments for enumy 
- * @return the number of issues found
+ * This scan will determine if the current file is an SUID file and then check
+ * the permissions of this file to make sure that they're not too loose.
+ * If the file is an SUID binary then we will call the  break_out_binary_scan()
+ * @param fi This is the current file that's going to be scanned 
+ * @param ar This is the structure that holds the link lists with the results 
  */
-int suid_bit_scan(File_Info *fi, All_Results *ar, Args *cmdline)
+int suid_bit_scan(File_Info *fi, All_Results *ar)
 {
     int findings = 0;
-    int id = 1;
     char *name = "Abnormal SUID enabled executable found";
 
+    /* Ignore non interesting binaries */
     if (
         !has_suid(fi) ||
         !has_global_execute(fi) ||
         (has_normal_suid_name(fi) && !has_global_write(fi)))
-        return findings;
+        goto END;
 
     findings++;
 
-    Result *new_result = create_new_issue();
-    set_id_and_desc(id, new_result);
-    set_issue_location(fi->location, new_result);
-    set_issue_name(name, new_result);
-    add_new_result_medium(new_result, ar, cmdline);
+    /* Abnormal SUID found */
+    add_issue(MEDIUM, fi->location, ar, name, "");
 
-    if (has_suid_and_global_write(fi, ar, cmdline))
+    if (has_suid_and_global_write(fi, ar))
         findings++;
 
-    if (has_suid_and_group_write(fi, ar, cmdline))
+    if (has_suid_and_group_write(fi, ar))
         findings++;
 
-    findings += break_out_binary_scan(fi, ar, cmdline);
+    findings += break_out_binary_scan(fi, ar);
+END:
     return findings;
 }
 
 /**
- * Tests to see if the file is a SUID file. If it's then it kicks of various 
- * GUID file scans such as breakout binaries and permissions checks
- * @param fi A struct containing the files information 
- * @param ar a struct containing all of the results that enumy has previously found
- * @param cmdline A struct containing the runtime arguments for enumy 
- * @return the number of issues found
+ * This scan will determine if the current file is an GUID file and then check
+ * the permissions of this file to make sure that they're not too loose.
+ * If the file is an GUID binary then we will call the  break_out_binary_scan()
+ * @param fi This is the current file that's going to be scanned 
+ * @param ar This is the structure that holds the link lists with the results 
  */
-int guid_bit_scan(File_Info *fi, All_Results *ar, Args *cmdline)
+int guid_bit_scan(File_Info *fi, All_Results *ar)
 {
     int findings = 0;
-    int id = 4;
     char *name = "Abnormal GUID enabled executable found";
 
     if (
@@ -103,16 +98,13 @@ int guid_bit_scan(File_Info *fi, All_Results *ar, Args *cmdline)
 
     findings++;
 
-    Result *new_result = create_new_issue();
-    set_id_and_desc(id, new_result);
-    set_issue_location(fi->location, new_result);
-    set_issue_name(name, new_result);
-    add_new_result_medium(new_result, ar, cmdline);
+    /* Abnormal GUID found */
+    add_issue(MEDIUM, fi->location, ar, name, "");
 
-    if (has_guid_and_global_write(fi, ar, cmdline))
+    if (has_guid_and_global_write(fi, ar))
         findings++;
 
-    if (has_guid_and_group_write(fi, ar, cmdline))
+    if (has_guid_and_group_write(fi, ar))
         findings++;
 
     return findings;
@@ -140,23 +132,15 @@ static bool has_normal_suid_name(File_Info *fi)
  * Tests to see if the SUID file has global write
  * @param fi A struct containing the files information 
  * @param ar a struct containing all of the results that enumy has previously found
- * @param cmdline A struct containing the runtime arguments for enumy 
  * @return true if it does
  */
-static bool has_suid_and_global_write(File_Info *fi, All_Results *ar, Args *cmdline)
+static bool has_suid_and_global_write(File_Info *fi, All_Results *ar)
 {
-    int id = 2;
     char *name = "SUID enabled executable with global write access";
-
     if (!has_global_write(fi))
         return false;
 
-    Result *new_result = create_new_issue();
-    set_id(id, new_result);
-    set_id_and_desc(id, new_result);
-    set_issue_location(fi->location, new_result);
-    set_issue_name(name, new_result);
-    add_new_result_high(new_result, ar, cmdline);
+    add_issue(HIGH, fi->location, ar, name, "");
 
     return true;
 }
@@ -165,24 +149,15 @@ static bool has_suid_and_global_write(File_Info *fi, All_Results *ar, Args *cmdl
  * Tests to see if the GUID file has global write
  * @param fi A struct containing the files information 
  * @param ar a struct containing all of the results that enumy has previously found
- * @param cmdline A struct containing the runtime arguments for enumy 
  * @return true if the file has group write
  */
-static bool has_suid_and_group_write(File_Info *fi, All_Results *ar, Args *cmdline)
+static bool has_suid_and_group_write(File_Info *fi, All_Results *ar)
 {
-    int id = 3;
     char *name = "SUID enabled executable with group write access";
-
     if (!has_group_write(fi))
         return false;
 
-    Result *new_result = create_new_issue();
-    set_id(id, new_result);
-    set_id_and_desc(id, new_result);
-    set_issue_location(fi->location, new_result);
-    set_issue_name(name, new_result);
-    add_new_result_high(new_result, ar, cmdline);
-
+    add_issue(HIGH, fi->location, ar, name, "");
     return true;
 }
 
@@ -190,24 +165,15 @@ static bool has_suid_and_group_write(File_Info *fi, All_Results *ar, Args *cmdli
  * Tests to see if the GUID file has group write
  * @param fi A struct containing the files information 
  * @param ar a struct containing all of the results that enumy has previously found
- * @param cmdline A struct containing the runtime arguments for enumy 
  * @return true if the file has global write enabled
  */
-static bool has_guid_and_global_write(File_Info *fi, All_Results *ar, Args *cmdline)
+static bool has_guid_and_global_write(File_Info *fi, All_Results *ar)
 {
-    int id = 5;
     char *name = "GUID enabled executable with global write access";
-
     if (!has_global_write(fi))
         return false;
 
-    Result *new_result = create_new_issue();
-    set_id(id, new_result);
-    set_id_and_desc(id, new_result);
-    set_issue_location(fi->location, new_result);
-    set_issue_name(name, new_result);
-    add_new_result_high(new_result, ar, cmdline);
-
+    add_issue(HIGH, fi->location, ar, name, "");
     return true;
 }
 
@@ -215,23 +181,14 @@ static bool has_guid_and_global_write(File_Info *fi, All_Results *ar, Args *cmdl
  * Test to see if the GUID file has group write
  * @param fi A struct containing the files information 
  * @param ar a struct containing all of the results that enumy has previously found
- * @param cmdline A struct containing the runtime arguments for enumy 
  * @return true if the file has group write enabled
  */
-static bool has_guid_and_group_write(File_Info *fi, All_Results *ar, Args *cmdline)
+static bool has_guid_and_group_write(File_Info *fi, All_Results *ar)
 {
-    int id = 6;
     char *name = "GUID enabled executable with group write access";
-
     if (!has_group_write(fi))
         return false;
 
-    Result *new_result = create_new_issue();
-    set_id(id, new_result);
-    set_id_and_desc(id, new_result);
-    set_issue_location(fi->location, new_result);
-    set_issue_name(name, new_result);
-    add_new_result_high(new_result, ar, cmdline);
-
+    add_issue(HIGH, fi->location, ar, name, "");
     return true;
 }
