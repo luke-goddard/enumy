@@ -137,14 +137,13 @@ void start_scan(All_Results *all_results, Args *args)
 
     /* ============================ KICK OFF SYSTEM SCANS ============================== */
 
-    /* Walk the file system in the background while we perform other scans */
-    pthread_create(&walk_thread, NULL, create_walk_thread, &walk_args);
 
     current_user_scan();
     sys_scan(all_results);
     sshd_conf_scan(all_results);
 
-    /* Wait for the file scans to complete  */
+    /* Walk the file system in the background while we perform other scans */
+    pthread_create(&walk_thread, NULL, create_walk_thread, &walk_args);
     pthread_join(walk_thread, (void **)&retval);
 
     /* ============================ FINISH SYSTEM SCANS ============================== */

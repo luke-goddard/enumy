@@ -160,8 +160,10 @@ static void permit_root_login_scan(All_Results *ar, vec_str_t *v)
 {
     int index = search_vector(v, "PermitRootLogin");
 
-    if (index == -1)
+    if (index == -1){
         add_issue(MEDIUM, SSHD_CONF_LOC, ar, "SSHD PermitRootLogin is set to prohibit-password", "");
+        return;
+    }
 
     if (strstr(v->data[index], " no") != NULL)
         add_issue(MEDIUM, SSHD_CONF_LOC, ar, "SSHD PermitRootLogin configuration coudld be more secure", v->data[index]);
