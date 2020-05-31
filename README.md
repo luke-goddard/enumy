@@ -125,11 +125,11 @@ Changing the default number of threads is pretty pointless __unless__  you're ru
 
 #### SUID GUID Scan
 
-The idea of this scan is enumerate the system looking for [SUID](!https://www.hackingarticles.in/linux-privilege-escalation-using-suid-binaries/)/GUID binaries that are abnormal, or have weak permissions that can be exploited.
+The idea of this scan is enumerate the system looking for [SUID](https://www.hackingarticles.in/linux-privilege-escalation-using-suid-binaries/)/GUID binaries that are abnormal, or have weak permissions that can be exploited.
 
 #### File Capabilities Scan
 
-Recently the Linux kernel supports [capablities](!https://www.man7.org/linux/man-pages/man7/capabilities.7.html), this is the prefered way to give a file a subset of root's powers to mitigate risk. Although this is a much safer way of doing things, if you're lucky enough to find abnormal capabilities set on a file then it's quite possible that you can exploit the executable to gain higher access. Enumy will check the capabilties set on all executable files on the system.
+Recently the Linux kernel supports [capablities](https://www.man7.org/linux/man-pages/man7/capabilities.7.html), this is the prefered way to give a file a subset of root's powers to mitigate risk. Although this is a much safer way of doing things, if you're lucky enough to find abnormal capabilities set on a file then it's quite possible that you can exploit the executable to gain higher access. Enumy will check the capabilties set on all executable files on the system.
 
 #### Interesting Files Scan
 
@@ -145,7 +145,7 @@ Some file should never have SUID bit set, it quite common for a lazy sys admin t
 
 #### Sysctl Parameter Hardening
 
-[Sysctl](!https://linux.die.net/man/8/sysctl) is used to modify kernel parameters at runtime. It's also possible to query these kernel parameters and check to see if important secutiry measures like ASLR are enabled.
+[Sysctl](https://linux.die.net/man/8/sysctl) is used to modify kernel parameters at runtime. It's also possible to query these kernel parameters and check to see if important secutiry measures like ASLR are enabled.
 
 #### Living Off The Land scan
 
@@ -162,4 +162,4 @@ SSH is one of one of the most common services that you will find in the real wor
 ## How To Contribute
 
 - If you can think of a scan idea that has not been implemented, raise it as an issue.
-- If you know how to program, make a pull request :) 
+- If you know how to program, make a pull request :)
