@@ -1,3 +1,10 @@
+/*
+    This file is used to report errors found at runtime and add them to 
+    a vector, that we can then same at the end of the scan.
+*/
+
+#pragma once
+
 #include "results.h"
 #include "main.h"
 
