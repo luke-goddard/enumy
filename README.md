@@ -15,8 +15,7 @@ Enumy is portable executable that you drop on target Linux machine during a pent
 ## Installation
 
 You can download the final binary from the release x86 or x64 tab. _Statically linked to musl_
-Transfer the final enum:w
-y binary to the target machine
+Transfer the final enumy binary to the target machine.
 
 - [latest release](https://github.com/luke-goddard/enumy/releases)
 
