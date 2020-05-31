@@ -13,6 +13,7 @@
 #include "debug.h"
 #include "scan.h"
 #include "reporter.h"
+#include "error_logger.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -61,6 +62,7 @@ void scan_file_for_issues(Thread_Pool_Args *thread_pool_args)
             free(new_file);
 
         free(thread_pool_args);
+        log_fatal_errno("Failed to allocate memory for the stat buf", errno);
         exit(EXIT_FAILURE);
     }
     if (new_file == NULL)
@@ -69,6 +71,7 @@ void scan_file_for_issues(Thread_Pool_Args *thread_pool_args)
             free(stat_buf);
 
         free(thread_pool_args);
+        log_fatal_errno("Failed to allocate memory for the new_file struct", errno);
         exit(EXIT_FAILURE);
     }
 
@@ -81,7 +84,7 @@ void scan_file_for_issues(Thread_Pool_Args *thread_pool_args)
         new_file->stat = stat_buf;
     else
     {
-        DEBUG_PRINT("lstat failed to get information for -> %s\n", new_file->location);
+        log_error_errno_loc(thread_pool_args->all_results, "Failed to run lstat on file", thread_pool_args->file_location, errno);
         goto END;
     }
 

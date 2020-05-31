@@ -24,6 +24,7 @@
 #include "results.h"
 #include "scan.h"
 #include "elf_parsing.h"
+#include "error_logger.h"
 #include "debug.h"
 
 #include <stdio.h>
@@ -41,7 +42,7 @@ int has_elf_magic_bytes(File_Info *fi);
 void close_elf(Elf_File *elf_file, File_Info *fi);
 bool elf_parse_dynamic_sections(Elf_File *elf);
 
-Elf_File *parse_elf(File_Info *fi);
+Elf_File *parse_elf(All_Results *ar, File_Info *fi);
 Elf_File *mmap_elf(File_Info *fi);
 Tag_Array *search_dynamic_for_value(Elf_File *elf, Tag tag);
 
@@ -123,7 +124,7 @@ int has_elf_magic_bytes(File_Info *fi)
  * @param fi The file that is going to be parsed 
  * @return NULL on Error, else a pointer to an Elf_File struct
  */
-Elf_File *parse_elf(File_Info *fi)
+Elf_File *parse_elf(All_Results *ar, File_Info *fi)
 {
     int fd;
     Elf_File *elf = NULL;
@@ -163,7 +164,7 @@ Elf_File *parse_elf(File_Info *fi)
     close(fd);
     if (elf->address == MAP_FAILED)
     {
-        DEBUG_PRINT("%s\n", "Failed to map binary into memory");
+        log_error_errno(ar, "Failed to map binary into memory", errno);
         goto FAILURE_CLOSE_ELF;
     }
 
@@ -175,7 +176,7 @@ Elf_File *parse_elf(File_Info *fi)
     // TODO: Support 64 bit elf's with most significant bit first
     if (elf->header->e_ident[EI_DATA] == ELFDATA2MSB && magic_result == X64)
     {
-        DEBUG_PRINT("Found a 64bit binary with most significat bit enabled, skipping parsing of this file -> %s\n", fi->location);
+        log_error_loc(ar, "Found 64 bit binary with most significant bit first enabled", fi->location);
         goto FAILURE_CLOSE_ELF;
     }
 
@@ -183,7 +184,7 @@ Elf_File *parse_elf(File_Info *fi)
     elf->sections = elf_sheader(elf->address);
     if (elf->sections == NULL)
     {
-        DEBUG_PRINT("Failed to parse elf's section headers for file -> %s\n", fi->location);
+        log_error_loc(ar, "Failed to parse elf's section headers", fi->location);
         goto FAILURE_CLOSE_ELF;
     }
 
@@ -191,7 +192,7 @@ Elf_File *parse_elf(File_Info *fi)
     elf->program_headers = elf_program_header(elf);
     if (elf->program_headers == NULL)
     {
-        DEBUG_PRINT("Failed to parse elf's program headers for file -> %s\n", fi->location);
+        log_error_loc(ar, "Failed to parse elf's program headers", fi->location);
         goto FAILURE_CLOSE_ELF;
     }
 
@@ -273,7 +274,7 @@ Tag_Array *search_dynamic_for_value(Elf_File *elf, Tag tag)
     Tag_Array *findings = malloc(sizeof(Tag_Array) * number_of_findings);
     if (findings == NULL)
     {
-        printf("Failed allocating memory for the tag_array");
+        log_fatal_errno("Failed to allocate memory for the tag array", errno);
         exit(EXIT_FAILURE);
     }
 

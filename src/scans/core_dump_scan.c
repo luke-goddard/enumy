@@ -21,6 +21,7 @@
 #include "scan.h"
 #include "elf_parsing.h"
 #include "debug.h"
+#include "error_logger.h"
 
 #include <stdio.h>
 #include <err.h>
@@ -65,10 +66,10 @@ int core_dump_scan(File_Info *fi, All_Results *ar)
         goto RET;
 
     /* Parse the elf file */
-    Elf_File *elf = parse_elf(fi);
+    Elf_File *elf = parse_elf(ar, fi);
     if (elf == NULL)
     {
-        DEBUG_PRINT("Failed to parse elf at location -> %s\n", fi->location);
+        /* Parse elf will log the err */
         goto RET;
     }
 
@@ -103,5 +104,5 @@ RET:
  */
 static void add_issue_wrapper(File_Info *fi, int severity, All_Results *ar, char *issue_name)
 {
-    add_issue(severity, fi->location, ar, issue_name, "");
+    add_issue(severity, fi->location, ar, issue_name, "Core dump files are used to debug crashed processes and can contain valuable information");
 }

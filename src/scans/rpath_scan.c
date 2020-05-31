@@ -37,6 +37,7 @@
 #include "main.h"
 #include "results.h"
 #include "scan.h"
+#include "error_logger.h"
 #include "elf_parsing.h"
 #include "debug.h"
 #include "utils.h"
@@ -113,17 +114,17 @@ int rpath_scan(File_Info *fi, All_Results *ar, Args *cmdline)
         return findings;
 
     /* Parse the elf file */
-    Elf_File *elf = parse_elf(fi);
+    Elf_File *elf = parse_elf(ar, fi);
     if (elf == NULL)
     {
-        DEBUG_PRINT("Failed to parse elf at location -> %s\n", fi->location);
+        /* parse elf will log the error */
         return findings;
     }
 
     /* Parse the elf files dynamic section and parses the required shared objects needed */
     if (!elf_parse_dynamic_sections(elf))
     {
-        DEBUG_PRINT("%s\n", "The elf file does not have a dynamic section");
+        log_warn_loc(ar, "ELF file does not have a dynamic section", fi->location);
         goto CLOSE_ELF;
     }
 
@@ -151,7 +152,7 @@ static Lib_Info *get_lib_info(Elf_File *elf)
     Lib_Info *lib_info = malloc(sizeof(Lib_Info));
     if (lib_info == NULL)
     {
-        printf("Failed to allocate memory when trying to get lib info\n");
+        log_fatal("Failed to allocate memory when trying to get lib info\n");
         exit(EXIT_FAILURE);
     }
 
@@ -195,7 +196,7 @@ static int test_missing_shared_libaries(Lib_Info *lib_info, File_Info *fi, All_R
     origin = get_dir_name(fi->location);
     if (origin == NULL)
     {
-        DEBUG_PRINT("Failed to get $ORIGIN for path %s\n", fi->location);
+        log_warn_loc(ar, "Failed to get $ORIGIN's real location", fi->location);
         return findings;
     }
 
@@ -206,7 +207,7 @@ static int test_missing_shared_libaries(Lib_Info *lib_info, File_Info *fi, All_R
     {
         if (strcasestr(lib_info->dt_needed[i].tag_value, ".so") == NULL)
         {
-            DEBUG_PRINT("Probably failed to parse DT_NEEDED at location %s with value -> '%s'\n", fi->location, lib_info->dt_needed[i].tag_value);
+            log_error_loc(ar, "Failed to correctly parse DT_NEEDED, or the elf file is corrupted", fi->location);
             continue;
         }
 

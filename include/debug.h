@@ -1,6 +1,7 @@
 #pragma once
 
 #include <stdbool.h>
+#include <stdio.h>
 
 /* Optional debugging settings, specified at runtime */
 extern bool DEBUG;       /* Set inside of enumy.c */

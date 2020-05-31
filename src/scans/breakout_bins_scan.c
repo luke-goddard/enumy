@@ -115,5 +115,5 @@ static void add_issue_wrapper(char *name, File_Info *fi, All_Results *ar)
     strncpy(issue_name, name, MAXSIZE - strlen(base_name) - 1);
     strcat(issue_name, base_name);
 
-    add_issue(HIGH, fi->location, ar, issue_name, "None");
+    add_issue(HIGH, fi->location, ar, issue_name, "The following files can be used to upgrade your privilages");
 }

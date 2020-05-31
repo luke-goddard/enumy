@@ -7,6 +7,7 @@
 #include "file_system.h"
 #include "scan.h"
 #include "elf_parsing.h"
+#include "error_logger.h"
 
 #include <stdio.h>
 #include <string.h>
@@ -188,8 +189,9 @@ static void search_implementation(int tool_type, File_Info *fi, All_Results *ar)
     /* Check that the type exists */
     if (tool_type < 0 || tool_type > TOTAL_CATEGORY_COUNT)
     {
-        DEBUG_PRINT("Recived unknown type %i inside of lotl_scan\n", tool_type);
-        return;
+        log_fatal("Programming error");
+        log_fatal("Recived unknown search type for lotl scan");
+        exit(EXIT_FAILURE);
     }
 
     /* Set the array to the const char * pointer that is related to the current scan type */
