@@ -7,7 +7,6 @@
 #include "results.h"
 #include "main.h"
 #include "file_system.h"
-#include "utils.h"
 #include "vector.h"
 #include "thpool.h"
 #include "debug.h"
@@ -16,6 +15,7 @@
 #include "error_logger.h"
 
 #include <stdio.h>
+#include <errno.h>
 #include <stdlib.h>
 #include <unistd.h>
 #include <pthread.h>
