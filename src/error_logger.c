@@ -225,11 +225,19 @@ void log_warn_errno_loc(All_Results *ar, char *msg, char *loc, int err)
     pthread_mutex_unlock(&ar->mutex);
 }
 
+/**
+ * This will sort the vector containing strings into alphabetical order 
+ * @param v This is the vector containing strings that we want to sort
+ */
 void sort_log(vec_str_t *v)
 {
     vec_sort(v, qcomp);
 }
 
+/**
+ * This function is used to unique the log, so that we don't have duplicate errors 
+ * @param v The vector containing the logs 
+ */
 void unqiue_log(vec_str_t *v)
 {
     char *previous;
@@ -317,6 +325,9 @@ static void log_wrapper(vec_str_t *v, char *msg)
     vec_push(v, error_msg);
 }
 
+/**
+ * This is a compare function used for qsort on the error logs 
+ */
 static int qcomp(const void *p1, const void *p2)
 {
     return strcmp(*(char *const *)p1, *(char *const *)p2);

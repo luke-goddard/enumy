@@ -101,5 +101,14 @@ void log_warn_errno(All_Results *ar, char *msg, int err);
  */
 void log_warn_errno_loc(All_Results *ar, char *msg, char *loc, int err);
 
+/**
+ * This will sort the vector containing strings into alphabetical order 
+ * @param v This is the vector containing strings that we want to sort
+ */
 void sort_log(vec_str_t *v);
+
+/**
+ * This function is used to unique the log, so that we don't have duplicate errors 
+ * @param v The vector containing the logs 
+ */
 void unqiue_log(vec_str_t *v);
