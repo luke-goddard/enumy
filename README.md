@@ -56,9 +56,10 @@ security vulnerabilities and hostspots
 
 ## Compilation
 
-To compile during _devlopment_, make libcap and the ncurses libary is all that is required.
+To compile during _devlopment_, make and libcap libary is all that is required.
 
 ```shell
+sudo apt-get install libcap-dev
 make
 ```
 
