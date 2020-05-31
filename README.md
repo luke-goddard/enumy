@@ -5,7 +5,7 @@
 [![Help Wanted](https://img.shields.io/github/issues/luke-goddard/enumy/help%20wanted?color=green)](https://github.com/luke-goddard/enumy/issues?q=is%3Aissue+is%3Aopen+label%3A%22help+wanted%22)
 
 # Enumy
-Enumy is portable executable that you drop on target Linux machine during a pentest or CTF in the post exploitation phase. Running enumy will enumerate the box for common security vulnerabilities. 
+Enumy is an __ultra fast portable executable__ that you drop on target Linux machine during a pentest or CTF in the post exploitation phase. Running enumy will enumerate the box for __common security vulnerabilities__. 
 
 <img src="https://i.imgur.com/luC3mTu.png"  align="right" width="300" height="200"/>
 
