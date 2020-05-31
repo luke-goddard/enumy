@@ -6,6 +6,8 @@
 
 # Enumy
 
+<img src="https://i.imgur.com/luC3mTu.png"  align="right" width="300" height="200"/>
+
 Enumy is an __ultra fast portable executable__ that you drop on target Linux machine during a pentest or CTF in the post exploitation phase. Running enumy will enumerate the box for __common security vulnerabilities__.
 
 Enumy is portable executable that you drop on target Linux machine during a pentest or CTF in the post exploitation phase. Running enumy will enumerate the box for common security vulnerabilities.
