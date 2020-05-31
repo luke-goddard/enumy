@@ -13,7 +13,7 @@ OBJ_SCAN := $(SRC_SCAN:$(SCAN_DIR)/%.c=$(OBJ_SCAN_DIR)/%.o)
 
 CPPFLAGS := -Iinclude -lcap
 LDFLAGS  := -Llib -lcap
-LDLIBS := -lncursesw -lpthread -lm -lcap
+LDLIBS := -lpthread -lm -lcap
 CFLAGS := -W 
 
 .PHONY: all clean
@@ -21,16 +21,16 @@ CFLAGS := -W
 all: $(EXE)
 
 $(EXE): $(OBJ) $(OBJ_SCAN)
-	$(CC) $(LDFLAGS) $^ $(LDLIBS) -o $@ -lncursesw -lpthread $(STATIC) $(ARCH) -g -Wall -Wextra -O3 
+	$(CC) $(LDFLAGS) $^ $(LDLIBS) -o $@ -lpthread $(STATIC) $(ARCH) -g -Wall -Wextra -O3 
 
 $(EXE_SCAN): $(OBJ_SCAN)
-	$(CC) $(LDFLAGS) $^ $(LDLIBS) -o $@ -lncursesw -lpthread $(STATIC) $(ARCH) -g -Wall -Wextra -O3 
+	$(CC) $(LDFLAGS) $^ $(LDLIBS) -o $@ -lpthread $(STATIC) $(ARCH) -g -Wall -Wextra -O3 
 	
 $(OBJ_SCAN_DIR)/%.o: $(SCAN_DIR)/%.c | $(OBJ_SCAN_DIR)
-	$(CC) $(CPPFLAGS) $(CFLAGS) -c $< -o $@ -lncursesw -lpthread $(STATIC) $(ARCH) -g -Wall -Wextra -O3 
+	$(CC) $(CPPFLAGS) $(CFLAGS) -c $< -o $@ -lpthread $(STATIC) $(ARCH) -g -Wall -Wextra -O3 
 
 $(OBJ_DIR)/%.o: $(SRC_DIR)/%.c | $(OBJ_DIR)
-	$(CC) $(CPPFLAGS) $(CFLAGS) -c $< -o $@ -lncursesw -lpthread $(STATIC) $(ARCH) -g -Wall -Wextra -O3 
+	$(CC) $(CPPFLAGS) $(CFLAGS) -c $< -o $@ -lpthread $(STATIC) $(ARCH) -g -Wall -Wextra -O3 
 
 $(OBJ_DIR):
 	mkdir $@
