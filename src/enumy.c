@@ -134,6 +134,15 @@ int main(int argc, char *argv[])
     if (DEBUG)
         show_runtime_args(args);
 
+    /* Make sure that we scan scave our results */
+    FILE *fptr = fopen(args->save_location, "w");
+    if (fptr == NULL)
+    {
+        printf("Failed to open %s\n", args->save_location);
+        exit(EXIT_FAILURE);
+    }
+
+    fclose(fptr);
     start_scan(all_results, args);
 
     free(args);

@@ -7,8 +7,10 @@
 #include <stdio.h>
 #include <string.h>
 #include <unistd.h>
+#include <errno.h>
 
 #include "debug.h"
+#include "error_logger.h"
 #include "main.h"
 #include "results.h"
 #include "vector.h"
@@ -31,7 +33,7 @@ static void host_based_auth_scan(All_Results *ar, vec_str_t *v);
 static void gss_api_auth_scan(All_Results *ar, vec_str_t *v);
 static void permit_root_login_scan(All_Results *ar, vec_str_t *v);
 static void x11_forwarding_scan(All_Results *ar, vec_str_t *v);
-static bool read_config_file(vec_str_t *v, char *location);
+static bool read_config_file(All_Results *ar, vec_str_t *v, char *location);
 
 /* ============================ FUNCTIONS ============================== */
 
@@ -47,9 +49,9 @@ void sshd_conf_scan(All_Results *all_results)
     vec_init(&lines);
 
     /* Try and read the SSH config file into a vector */
-    if (!read_config_file(&lines, SSHD_CONF_LOC))
+    if (!read_config_file(all_results, &lines, SSHD_CONF_LOC))
     {
-        DEBUG_PRINT("%s", "Skipping sshd config test\n");
+        log_warn_loc(all_results, "Failed to find SSHD conf", SSHD_CONF_LOC);
         return;
     }
 
@@ -187,7 +189,7 @@ static void x11_forwarding_scan(All_Results *ar, vec_str_t *v)
  * @param v This is a vector that will be initiliazed an hold the results 
  * @param location this is the location of the file that's going to be read
  */
-static bool read_config_file(vec_str_t *v, char *location)
+static bool read_config_file(All_Results *ar, vec_str_t *v, char *location)
 {
     FILE *fp;
     char buffer[MAXSIZE];
@@ -197,7 +199,7 @@ static bool read_config_file(vec_str_t *v, char *location)
     fp = fopen(location, "r");
     if (fp == NULL)
     {
-        DEBUG_PRINT("SSHD config file exists at location -> %s but is not readable\n", location);
+        log_warn_errno_loc(ar, location, "Failed to read the SSHD configuration file", errno);
         return false;
     }
 
@@ -216,8 +218,8 @@ static bool read_config_file(vec_str_t *v, char *location)
             buffer_cpy = strdup(buffer);
             if (buffer_cpy == NULL)
             {
-                DEBUG_PRINT("%s\n", "Failed to allocate memory while reading the sshd configuration file");
-                continue;
+                log_fatal_errno("Failed to allocate memory while reading SSHD conf", errno);
+                exit(EXIT_FAILURE);
             }
             vec_push(v, buffer_cpy);
         }

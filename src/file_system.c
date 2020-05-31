@@ -9,6 +9,7 @@
 #include "scan.h"
 #include "thpool.h"
 #include "debug.h"
+#include "error_logger.h"
 
 #include <stdlib.h>
 #include <libgen.h>
@@ -64,12 +65,9 @@ void walk_file_system(char *entry_location, All_Results *all_results, Args *cmdl
 
     if (dir == NULL)
     {
-        DEBUG_PRINT("Failed to open directory at location %s\n", entry_location);
-        DEBUG_PRINT("Error -> %s\n", strerror(errno));
+        log_warn_errno_loc(all_results, "Failed to open dir", entry_location, errno);
         return;
     }
-
-    DEBUG_PRINT_EXTRA("Walking dir at location -> %s\n", entry_location);
 
     while ((entry = readdir(dir)) != NULL)
     {
@@ -77,14 +75,12 @@ void walk_file_system(char *entry_location, All_Results *all_results, Args *cmdl
         {
             if (entry->d_type & DT_REG)
             {
-                DEBUG_PRINT_EXTRA("Found file %s\n", entry->d_name);
                 strncpy(file_location, entry_location, sizeof(file_location) - 1);
                 strncat(file_location, entry->d_name, sizeof(file_location) - 1 - strlen(file_location));
                 add_file_to_thread_pool(file_location, entry->d_name, all_results, cmdline);
             }
             else if (entry->d_type & DT_DIR)
             {
-                DEBUG_PRINT_EXTRA("Found folder %s\n", entry->d_name);
                 strncpy(file_location, entry_location, sizeof(file_location) - 1);
                 strncat(file_location, entry->d_name, sizeof(file_location) - 1 - strlen(file_location));
                 if (
@@ -100,7 +96,7 @@ void walk_file_system(char *entry_location, All_Results *all_results, Args *cmdl
                 walk_file_system(file_location, all_results, cmdline);
             }
             else
-                DEBUG_PRINT_EXTRA("Found unknown file type -> %s, %i\n", entry->d_name, entry->d_type);
+                log_warn_loc(all_results, "Found an unknown file type", file_location);
         }
     }
     closedir(dir);
@@ -294,11 +290,9 @@ static void add_file_to_thread_pool(char *file_location, char *file_name, All_Re
 
     if (args == NULL)
     {
-        printf("Failed to allocate memort when adding file to the thread pool");
+        log_fatal("Failed to allocate memort when adding file to the thread pool");
         exit(EXIT_FAILURE);
     }
-
-    DEBUG_PRINT_EXTRA("Scanning file -> %s\n", file_location);
 
     memset(args->file_location, '\0', sizeof args->file_location);
     strncpy(args->file_location, file_location, sizeof(args->file_location));

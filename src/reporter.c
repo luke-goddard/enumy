@@ -7,6 +7,7 @@
 #include "results.h"
 #include "main.h"
 #include "cJSON.h"
+#include "error_logger.h"
 #include "vector.h"
 
 #include <stdio.h>
@@ -33,9 +34,11 @@ static void add_cat_issue_to_json(cJSON *cat_type, vec_unsigned_long *ids, Resul
  */
 int save_as_json(All_Results *ar, Args *args)
 {
-    cJSON *root, *infos, *info;
+    cJSON *root, *infos, *info, *log;
     cJSON *high_results, *medium_results;
     cJSON *low_results, *info_results;
+    cJSON *warnings, *errors;
+    cJSON *e;
 
     FILE *fptr;
 
@@ -44,10 +47,13 @@ int save_as_json(All_Results *ar, Args *args)
 
     root = cJSON_CreateObject();
     infos = cJSON_CreateArray();
+    log = cJSON_CreateObject();
     high_results = cJSON_CreateArray();
     medium_results = cJSON_CreateArray();
     low_results = cJSON_CreateArray();
     info_results = cJSON_CreateArray();
+    warnings = cJSON_CreateArray();
+    errors = cJSON_CreateArray();
 
     puts("Generating JSON");
     gethostname(hostname, MAXSIZE - 1);
@@ -55,6 +61,7 @@ int save_as_json(All_Results *ar, Args *args)
     /* Info section */
     cJSON_AddItemToObject(root, "runtime_information", infos);
     cJSON_AddItemToArray(infos, info = cJSON_CreateObject());
+    cJSON_AddItemToObject(info, "total_issues", cJSON_CreateNumber(ar->high_tot + ar->medium_tot + ar->low_tot + ar->info_tot));
     cJSON_AddItemToObject(info, "save_location", cJSON_CreateString(args->save_location));
     cJSON_AddItemToObject(info, "ignore_scan_dir", cJSON_CreateString(args->ignore_scan_dir));
     cJSON_AddItemToObject(info, "walk_dir", cJSON_CreateString(args->walk_dir));
@@ -75,11 +82,43 @@ int save_as_json(All_Results *ar, Args *args)
     cJSON_AddItemToObject(root, "low_results", low_results);
     cJSON_AddItemToObject(root, "info_results", info_results);
 
+    /* logger*/
+    cJSON_AddItemToObject(root, "log", log);
+    cJSON_AddItemToObject(log, "errors", errors);
+    cJSON_AddItemToObject(log, "warnings", warnings);
+
     /* Actualy add the issues */
     add_cat_issue_to_json(high_results, ar->high_ids, ar->high, ar->high_tot);
     add_cat_issue_to_json(medium_results, ar->medium_ids, ar->medium, ar->medium_tot);
     add_cat_issue_to_json(low_results, ar->low_ids, ar->low, ar->low_tot);
     add_cat_issue_to_json(info_results, ar->info_ids, ar->info, ar->info_tot);
+
+    sort_log(ar->errors);
+    sort_log(ar->warnings);
+    unqiue_log(ar->errors);
+    unqiue_log(ar->warnings);
+
+    /* Actuall add the errors to the report */
+    cJSON_AddItemToArray(errors, e = cJSON_CreateObject());
+    cJSON_AddItemToObject(e, "total_errors", cJSON_CreateNumber(ar->errors->length));
+
+    for (int i = 0; i < ar->errors->length; i++)
+    {
+        char num[MAXSIZE] = {'\0'};
+        snprintf(num, sizeof(num) - 1, "%d", i);
+        cJSON_AddItemToObject(e, num, cJSON_CreateString(ar->errors->data[i]));
+    }
+
+    /* Actuall add the warnings to the report */
+    cJSON_AddItemToArray(warnings, e = cJSON_CreateObject());
+    cJSON_AddItemToObject(e, "total_warning", cJSON_CreateNumber(ar->warnings->length));
+
+    for (int i = 0; i < ar->warnings->length; i++)
+    {
+        char num[MAXSIZE] = {'\0'};
+        snprintf(num, sizeof(num) - 1, "%d", i);
+        cJSON_AddItemToObject(e, num, cJSON_CreateString(ar->warnings->data[i]));
+    }
 
     /* Convert to json */
     out = cJSON_Print(root);
@@ -89,10 +128,6 @@ int save_as_json(All_Results *ar, Args *args)
         printf("Failed generating JSON object\n");
         return false;
     }
-
-    /* ============================ TODO ============================== */
-    /* This check should happen at the start of the program             */
-    /* ============================ TODO ============================== */
 
     /* Save to file */
     fptr = fopen(args->save_location, "w");
@@ -130,7 +165,7 @@ static void add_cat_issue_to_json(cJSON *cat_type, vec_unsigned_long *ids, Resul
         vec_void_t res_ptrs;
         vec_init(&res_ptrs);
 
-        cJSON *locations = cJSON_CreateArray();
+        cJSON *locations = cJSON_CreateObject();
         get_all_issues_with_id(head, &res_ptrs, current_id, linked_list_len);
         cJSON_AddItemToArray(cat_type, result = cJSON_CreateObject());
         for (int x = 0; x < res_ptrs.length; x++)
@@ -138,13 +173,14 @@ static void add_cat_issue_to_json(cJSON *cat_type, vec_unsigned_long *ids, Resul
             Result *current_result = res_ptrs.data[x];
             if (x == 0)
             {
-                locations = cJSON_CreateArray();
-                cJSON_AddItemToObject(result, "issue_id", cJSON_CreateNumber(current_result->issue_id));
+                locations = cJSON_CreateObject();
                 cJSON_AddItemToObject(result, "issue_name", cJSON_CreateString(current_result->issue_name));
                 cJSON_AddItemToObject(result, "other_info", cJSON_CreateString(current_result->other_info));
                 cJSON_AddItemToObject(result, "locations", locations);
             }
-            cJSON_AddItemToArray(locations, cJSON_CreateString(current_result->location));
+            char num[MAXSIZE] = {'\0'};
+            snprintf(num, sizeof(num) - 1, "%d", x);
+            cJSON_AddItemToObject(locations, num, cJSON_CreateString(current_result->location));
         }
         vec_deinit(&res_ptrs);
     }

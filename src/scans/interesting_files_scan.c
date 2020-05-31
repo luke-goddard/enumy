@@ -11,6 +11,7 @@
 #include "results.h"
 #include "utils.h"
 #include "file_system.h"
+#include "error_logger.h"
 #include "elf_parsing.h"
 #include "debug.h"
 
@@ -36,7 +37,7 @@ static int extension_checker(File_Info *fi, All_Results *ar);
 static int file_name_checker(File_Info *fi, All_Results *ar);
 static bool check_for_encryption_key(File_Info *fi, All_Results *ar);
 static int check_for_writable_shared_object(File_Info *fi, All_Results *ar);
-static double caclulate_file_entropy(char *file_location);
+static double caclulate_file_entropy(All_Results *ar, char *file_location);
 static int search_conf_for_pass(File_Info *fi, All_Results *ar);
 static int test_if_encryption_key(File_Info *fi, All_Results *ar);
 static int test_if_config_file(File_Info *fi, All_Results *ar);
@@ -90,10 +91,7 @@ static int extension_checker(File_Info *fi, All_Results *ar)
     {
     case 'b':
         if (strcmp(fi->extension, "bk") == 0)
-        {
-            add_issue(INFO, fi->location, ar, "Found possible backup file", "");
-            return 1;
-        }
+            add_issue(INFO, fi->location, ar, "Found possible backup file", "Worth checking if there is anything sensative inside");
         break;
     case 's':
         if (strcmp(fi->extension, "so") == 0)
@@ -182,17 +180,20 @@ static bool check_for_encryption_key(File_Info *fi, All_Results *ar)
     if (access(fi->location, R_OK) != 0)
     {
     NONREADABLE:
-        add_issue(INFO, fi->location, ar, "None readable potential encryption key", "");
+        add_issue(INFO, fi->location, ar, "None readable potential encryption key", "Private keys should never be readable");
         return true;
     }
 
     /* Check the file's entropy */
-    entropy = caclulate_file_entropy(fi->location);
+    entropy = caclulate_file_entropy(ar, fi->location);
     if (entropy > 7.0)
         return false;
 
     if (entropy == -1)
-        DEBUG_PRINT("Failed to calculate entropy for file at location -> %s\n", fi->location);
+    {
+        log_warn_loc(ar, "Entropy calculation returned a bad value", fi->location);
+        return false;
+    }
 
     if (getuid() == 0 && fi->stat->st_uid == 0)
         goto NONREADABLE;
@@ -209,7 +210,7 @@ static bool check_for_encryption_key(File_Info *fi, All_Results *ar)
  * @param file_location location of the file to calculate entropy for 
  * @return the files entropy or -1 if entropy calculations failed
  */
-static double caclulate_file_entropy(char *file_location)
+static double caclulate_file_entropy(All_Results *ar, char *file_location)
 {
     char str[ENTROPY_SIZE];
     unsigned int len, *hist, histlen, i;
@@ -221,7 +222,7 @@ static double caclulate_file_entropy(char *file_location)
     f = fopen(file_location, "r");
     if (f == NULL)
     {
-        DEBUG_PRINT("Failed to open file at location (Entropy) -> %s\n", file_location);
+        log_warn_errno_loc(ar, "Failed to calulate entropy", file_location, errno);
         return -1;
     }
 
@@ -245,7 +246,7 @@ static double caclulate_file_entropy(char *file_location)
     hist = (unsigned int *)calloc(len, sizeof(int));
     if (hist == NULL)
     {
-        DEBUG_PRINT("Failed to allocate %lu bytes during calloc entropy -> %s\n", (long int)len * sizeof(long int), file_location);
+        log_error_errno_loc(ar, "Failed to calculate entropy due to calloc", file_location, errno);
         return -1;
     }
 
@@ -293,7 +294,7 @@ static int search_conf_for_pass(File_Info *fi, All_Results *ar)
     /* Check the file is not NULL */
     if (file == NULL)
     {
-        DEBUG_PRINT("Failed to open file at location -> %s\n", fi->location);
+        log_warn_errno_loc(ar, "Failed to open config file", fi->location, errno);
         return findings;
     }
 
@@ -311,7 +312,7 @@ static int search_conf_for_pass(File_Info *fi, All_Results *ar)
             (strcasestr(line, "privatekey") != NULL) ||
             (strcasestr(line, "private-key") != NULL))
         {
-            add_issue(INFO, fi->location, ar, "Config file could contain passwords", "");
+            add_issue(INFO, fi->location, ar, "Config file could contain passwords", "This scans searches for key words and produces many false positives");
             findings++;
         }
     }
@@ -330,7 +331,7 @@ static int check_for_writable_shared_object(File_Info *fi, All_Results *ar)
 {
     if (has_global_write(fi))
     {
-        add_issue(HIGH, fi->location, ar, "World Writable shared object found", "");
+        add_issue(HIGH, fi->location, ar, "World Writable shared object found", "Is there any files on the system that use these shared objects?");
         return 1;
     }
     return 0;

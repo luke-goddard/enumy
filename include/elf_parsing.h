@@ -126,7 +126,7 @@ int has_elf_magic_bytes(File_Info *fi);
  * @param fi The file that is going to be parsed 
  * @return NULL on Error, else a pointer to an Elf_File struct
  */
-Elf_File *parse_elf(File_Info *fi);
+Elf_File *parse_elf(All_Results *ar, File_Info *fi);
 
 /**
  * This function will itterate through the dynamic section and find tags that match the search 

@@ -151,6 +151,39 @@ All_Results *initilize_total_results()
         exit(EXIT_FAILURE);
     }
 
+    /* Create the errors vector */
+    all_results->errors = (vec_str_t *)malloc(sizeof(vec_str_t));
+    if (all_results->info_ids == NULL)
+    {
+        DEBUG_PRINT("%s\n", "Failed to allocate the errors vector");
+        free(all_results->high);
+        free(all_results->medium);
+        free(all_results->low);
+        free(all_results->info);
+        free(all_results->high_ids);
+        free(all_results->medium_ids);
+        free(all_results->low_ids);
+        free(all_results->info_ids);
+        exit(EXIT_FAILURE);
+    }
+
+    /* Create the errors vector */
+    all_results->warnings = (vec_str_t *)malloc(sizeof(vec_str_t));
+    if (all_results->info_ids == NULL)
+    {
+        DEBUG_PRINT("%s\n", "Failed to allocate the errors vector");
+        free(all_results->high);
+        free(all_results->medium);
+        free(all_results->low);
+        free(all_results->info);
+        free(all_results->high_ids);
+        free(all_results->medium_ids);
+        free(all_results->low_ids);
+        free(all_results->info_ids);
+        free(all_results->errors);
+        exit(EXIT_FAILURE);
+    }
+
     /* ============================ TODO ============================== */
     /* Linked list should not be initilized with bad values */
     /* ============================ TODO ============================== */
@@ -192,6 +225,8 @@ All_Results *initilize_total_results()
     vec_init(all_results->medium_ids);
     vec_init(all_results->low_ids);
     vec_init(all_results->info_ids);
+    vec_init(all_results->errors);
+    vec_init(all_results->warnings);
 
     pthread_mutex_init(&all_results->mutex, NULL);
 
@@ -223,11 +258,20 @@ void free_total_results(All_Results *ar)
     if (ar->info != NULL)
         free_linked_list(ar->info);
 
+    /* Free error/warning vectors */
+    for (int i = 0; i < ar->warnings->length; i++)
+        free(ar->warnings->data[i]);
+
+    for (int i = 0; i < ar->errors->length; i++)
+        free(ar->errors->data[i]);
+
     /* Destroy the vectors */
     vec_deinit(ar->high_ids);
     vec_deinit(ar->medium_ids);
     vec_deinit(ar->low_ids);
     vec_deinit(ar->info_ids);
+    vec_deinit(ar->warnings);
+    vec_deinit(ar->errors);
 
     /* Free the vector pointers */
     free(ar->high_ids);
