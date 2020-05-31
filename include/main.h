@@ -12,7 +12,7 @@
 /* ============================ DEFINES ============================== */
 
 #define VERSION "v1.05" /* Enumy's version */
-#define MAXSIZE 2048    /* Arbitrary maximum size for some buffers */
+#define MAXSIZE 2049    /* Arbitrary maximum size for some buffers */
 
 /* ============================ STRUCTS ============================== */
 

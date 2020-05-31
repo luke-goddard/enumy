@@ -180,7 +180,7 @@ static void walk(char *location, vec_str_t *v)
 /* ============================ TODO ============================== */
 static bool read_file(char *location, vec_str_t *v)
 {
-    char line[MAXSIZE];
+    char line[MAXSIZE] = {'\0'};
     FILE *file = fopen(location, "r");
 
     if (file == NULL)
@@ -199,7 +199,6 @@ static bool read_file(char *location, vec_str_t *v)
         /* ============================ TODO ============================== */
         /*  Malloc inside of for loop could be improved                     */
         /*  Return value not checked                                        */
-        /*  Buffer overflow possible?                                       */
         /*  Ignore lines that start with a comment                          */
         /* ============================ TODO ============================== */
 
@@ -210,6 +209,7 @@ static bool read_file(char *location, vec_str_t *v)
             new_line[strlen(new_line) - 1] = '/';
 
         vec_push(v, new_line);
+        memset(line, '\0', sizeof(line));
     }
     fclose(file);
     return true;
