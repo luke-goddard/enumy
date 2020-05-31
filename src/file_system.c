@@ -295,7 +295,7 @@ static void add_file_to_thread_pool(char *file_location, char *file_name, All_Re
     }
 
     memset(args->file_location, '\0', sizeof args->file_location);
-    strncpy(args->file_location, file_location, sizeof(args->file_location));
+    strncpy(args->file_location, file_location, sizeof(args->file_location) - 2);
     strncpy(args->file_name, file_name, sizeof(args->file_name));
 
     args->all_results = all_results;

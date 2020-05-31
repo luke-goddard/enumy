@@ -187,7 +187,7 @@ void lotl_scan(File_Info *fi, All_Results *ar)
 static void search_implementation(int tool_type, File_Info *fi, All_Results *ar)
 {
     /* Check that the type exists */
-    if (tool_type < 0 || tool_type > TOTAL_CATEGORY_COUNT)
+    if (tool_type < 0 || tool_type > TOTAL_CATEGORY_COUNT - 1)
     {
         log_fatal("Programming error");
         log_fatal("Recived unknown search type for lotl scan");
