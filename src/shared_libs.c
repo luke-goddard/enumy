@@ -5,7 +5,6 @@
 */
 
 #include "file_system.h"
-#include "utils.h"
 #include "vector.h"
 #include "debug.h"
 

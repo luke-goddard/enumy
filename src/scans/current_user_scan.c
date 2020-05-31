@@ -10,7 +10,6 @@
 #include "debug.h"
 #include "results.h"
 #include "scan.h"
-#include "utils.h"
 #include "vector.h"
 
 #include <stdio.h>

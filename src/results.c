@@ -22,7 +22,6 @@
 #include <stdio.h>
 #include <string.h>
 #include "results.h"
-#include "utils.h"
 #include "main.h"
 #include "debug.h"
 #include "vector.h"

@@ -9,13 +9,13 @@
 
 #include "main.h"
 #include "results.h"
-#include "utils.h"
 #include "file_system.h"
 #include "error_logger.h"
 #include "elf_parsing.h"
 #include "debug.h"
 
 #include <sys/types.h>
+#include <errno.h>
 #include <sys/stat.h>
 #include <sys/mman.h>
 #include <fcntl.h>

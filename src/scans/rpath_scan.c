@@ -40,7 +40,6 @@
 #include "error_logger.h"
 #include "elf_parsing.h"
 #include "debug.h"
-#include "utils.h"
 #include "vector.h"
 
 #include <stdio.h>
