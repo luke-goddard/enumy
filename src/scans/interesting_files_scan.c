@@ -90,7 +90,7 @@ static int extension_checker(File_Info *fi, All_Results *ar)
     switch (fi->extension[0])
     {
     case 'b':
-        if (strcmp(fi->extension, "bk") == 0)
+        if ((strcmp(fi->extension, "bk") == 0) || (strcmp(fi->extension, "bak") == 0))
             add_issue(INFO, fi->location, ar, "Found possible backup file", "Worth checking if there is anything sensative inside");
         break;
     case 's':
@@ -154,6 +154,16 @@ static int file_name_checker(File_Info *fi, All_Results *ar)
         /* Core dump files */
         if (strcasestr(fi->name, "core") != NULL)
             findings += core_dump_scan(fi, ar);
+        break;
+
+    case 'p':
+        if ((strcmp(fi->name, "shadow.bak") == 0) || strcmp(fi->name, "shadow-") == 0)
+            add_issue(INFO, fi->location, ar, "Found backup /etc/passwd file", "");
+        break;
+
+    case 's':
+        if ((strcmp(fi->name, "shadow.bak") == 0) || strcmp(fi->name, "shadow-") == 0)
+            add_issue(MEDIUM, fi->location, ar, "Found backup /etc/shadow file", "");
         break;
     }
     return findings;

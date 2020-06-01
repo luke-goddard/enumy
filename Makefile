@@ -51,6 +51,9 @@ cov:
 	--form description="Description" \
 	https://scan.coverity.com/builds?project=luke-goddard%2Fenumy
 
+cppcheck:
+	cppcheck --enable=all src/* -I include
+
 .PHONY: asci
 
 ascii: 
