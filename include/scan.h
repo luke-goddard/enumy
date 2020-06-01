@@ -152,3 +152,19 @@ void sshd_conf_scan(All_Results *all_results);
  * to complete. Currently the output from this scan is NOT saved in the final results.
  */
 void current_user_scan();
+
+/**
+ * This function will read and parse the /etc/passwd file and then run various 
+ * scans against the contents of this file.
+ * @param ar Enumy's results struct
+ * @return Returns a vector containing pointers to Parsed_Passwd_line
+ */
+vec_void_t *passwd_scan(All_Results *ar);
+
+/* ============================ CLEAN UP FUNCTIONS ============================== */
+
+/**
+ * Deallocates the memory used by calling passwd_scan
+ * @param users vector containing pointers to Parsed_Passwd_line
+ */
+void free_users(vec_void_t *users);

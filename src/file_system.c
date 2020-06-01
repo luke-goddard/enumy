@@ -10,6 +10,7 @@
 #include "thpool.h"
 #include "debug.h"
 #include "error_logger.h"
+#include "vector.h"
 
 #include <stdlib.h>
 #include <libgen.h>
@@ -24,7 +25,7 @@
 
 /* ============================ PROTOTYPES ============================== */
 
-void walk_file_system(char *entry_location, All_Results *all_results, Args *cmdline);
+void walk_file_system(char *entry_location, All_Results *all_results, Args *cmdline, vec_void_t *users);
 
 bool has_extension(File_Info *f, char *extension);
 bool has_global_write(File_Info *f);
@@ -42,7 +43,7 @@ char *get_dir_name(char *full_path);
 void get_file_extension(char *buf, char *f_name);
 bool is_folder_writable(char *path);
 
-static void add_file_to_thread_pool(char *file_location, char *file_name, All_Results *all_results, Args *cmdline);
+static void add_file_to_thread_pool(char *file_location, char *file_name, All_Results *all_results, Args *cmdline, vec_void_t *users);
 
 /* ============================ FUNCTIONS ============================== */
 
@@ -54,8 +55,9 @@ static void add_file_to_thread_pool(char *file_location, char *file_name, All_Re
  * @param entry_location the root location to walk 
  * @param all_results a pointer to structure containinng all the future enumy findings 
  * @param cmdline a pointer to the run time arguments 
+ * @param users This is the parsed /etc/passwd file
  */
-void walk_file_system(char *entry_location, All_Results *all_results, Args *cmdline)
+void walk_file_system(char *entry_location, All_Results *all_results, Args *cmdline, vec_void_t *users)
 {
     DIR *dir;
     struct dirent *entry;
@@ -77,7 +79,7 @@ void walk_file_system(char *entry_location, All_Results *all_results, Args *cmdl
             {
                 strncpy(file_location, entry_location, sizeof(file_location) - 1);
                 strncat(file_location, entry->d_name, sizeof(file_location) - 1 - strlen(file_location));
-                add_file_to_thread_pool(file_location, entry->d_name, all_results, cmdline);
+                add_file_to_thread_pool(file_location, entry->d_name, all_results, cmdline, users);
             }
             else if (entry->d_type & DT_DIR)
             {
@@ -93,7 +95,7 @@ void walk_file_system(char *entry_location, All_Results *all_results, Args *cmdl
                 if (strcmp(cmdline->ignore_scan_dir, file_location) == 0)
                     continue;
 
-                walk_file_system(file_location, all_results, cmdline);
+                walk_file_system(file_location, all_results, cmdline, users);
             }
             else
                 log_warn_loc(all_results, "Found an unknown file type", file_location);
@@ -284,7 +286,7 @@ bool is_folder_writable(char *path)
  * @param file_location the file to be scaned 
  * @param file_name the name of the file that is going to be ccaned 
  */
-static void add_file_to_thread_pool(char *file_location, char *file_name, All_Results *all_results, Args *cmdline)
+static void add_file_to_thread_pool(char *file_location, char *file_name, All_Results *all_results, Args *cmdline, vec_void_t *users)
 {
     Thread_Pool_Args *args = malloc(sizeof(Thread_Pool_Args));
 
@@ -294,8 +296,9 @@ static void add_file_to_thread_pool(char *file_location, char *file_name, All_Re
         exit(EXIT_FAILURE);
     }
 
+    args->users = users;
     memset(args->file_location, '\0', sizeof args->file_location);
-    strncpy(args->file_location, file_location, sizeof(args->file_location) - 2);
+    strncpy(args->file_location, file_location, sizeof(args->file_location) - 1);
     strncpy(args->file_name, file_name, sizeof(args->file_name));
 
     args->all_results = all_results;

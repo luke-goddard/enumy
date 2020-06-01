@@ -10,8 +10,6 @@
 
 Enumy is an __ultra fast portable executable__ that you drop on target Linux machine during a pentest or CTF in the post exploitation phase. Running enumy will enumerate the box for __common security vulnerabilities__.
 
-Enumy is portable executable that you drop on target Linux machine during a pentest or CTF in the post exploitation phase. Running enumy will enumerate the box for common security vulnerabilities.
-
 ## Installation
 
 You can download the final binary from the release x86 or x64 tab. _Statically linked to musl_
@@ -53,7 +51,6 @@ security vulnerabilities and hostspots
  -f           Run full scans
  -s           Show missing shared libaries
  -d           Debug mode
- -n           Enabled ncurses
  -h           Show help
  ```
 
@@ -79,46 +76,31 @@ cd output
 
 Below is the ever growing list of scans that have been implemented.
 
-| Scan Type  | Quick scan | Full Scan | Implemented |
-| ------------- | ------------- | -------------- | ----------- |
-| [SUID/GUID Scan](#suid-guid-scan) | [x] Enabled | [x] Enabled | [x] True |
-| [File Capabilities Scan](#file-capabilities-scan) | [x] Enabled | [x] Enabled | [x] True |
-| [Intresting Files Scan](#intresting-files-scan) | [x] Enabled | [x] Enabled | [x] True |
-| [Coredump Scan](#coredump-scan) | [x] Enabled| [x] Enabled | [x] True |
-| [Breakout Binaries Scan](#breakout-binary-scan)| [x] Enabled | [x] Enabled | [x] True |
-| [SSHD Configuration Scan](#ssh-misconfiguration-scan) | [x] Enabled | [x] Enabled | [x] True |
-| [Sysctl Scan](#sysctl-parameter-hardening) | [x] Enabled | [x] Enabled | [x] True |
-| [Living Off The Land Scan](#living-off-the-land-scan) | [x] Enabled | [x] Enabled | [x] True |
-| [Dynamic Shared Object Injection Scan](#dynamic-shared-object-injection-scan) | [ ] Disabled | [x] Enabled | [x] True |
-| Current User Scan | [ ] Disabled | [ ] Disabled | [ ] False |
-| Permissions Scan | [ ] Disabled | [ ] Disabled | [ ] False |
-| Docker Scan | [ ] Disabled | [ ] Disabled | [ ] False |
-| Environment Scan | [ ] Disabled | [ ] Disabled | [ ] False |
-| Privilaged Access Scan | [ ] Disabled | [ ] Disabled | [ ] False |
-| Networking Scan | [ ] Disabled | [ ] Disabled | [ ] False |
-| System Info Scan | [ ] Disabled | [ ] Disabled | [ ] False |
-| Verion Information Scan | [ ] Disabled | [ ] Disabled | [ ] False |
-| Default Weak Credentials Scan | [ ] Disabled | [ ] Disabled | [ ] False |
-| Weak Crypto Scan | [ ] Disabled | [ ] Disabled | [ ] False |
+| Scan Type                                                    | Quick scan         | Full Scan          | Implemented        |
+| ------------------------------------------------------------ | ------------------ | ------------------ | ------------------ |
+| [SUID/GUID Scan](#suid-guid-scan)                            | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: |
+| [File Capabilities Scan](#file-capabilities-scan)            | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: |
+| [Intresting Files Scan](#intresting-files-scan)              | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: |
+| [Coredump Scan](#coredump-scan)                              | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: |
+| [Breakout Binaries Scan](#breakout-binary-scan)              | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: |
+| [SSHD Configuration Scan](#ssh-misconfiguration-scan)        | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: |
+| [Sysctl Scan](#sysctl-parameter-hardening)                   | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: |
+| [Living Off The Land Scan](#living-off-the-land-scan)        | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: |
+| [Current User Scan](#current-user-scan)                      | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: |
+| [*.so Injection Scan](#dynamic-shared-object-injection-scan) | :x:                | :heavy_check_mark: | :heavy_check_mark: |
+| Permissions Scan                                             | :x:                | :heavy_check_mark: | :x:                |
+| Docker Scan                                                  | :heavy_check_mark: | :heavy_check_mark: | :x:                |
+| Environment Scan                                             | :heavy_check_mark: | :heavy_check_mark: | :x:                |
+| Privilaged Access Scan                                       | :heavy_check_mark: | :heavy_check_mark: | :x:                |
+| Networking Scan                                              | :heavy_check_mark: | :heavy_check_mark: | :x:                |
+| System Info Scan                                             | :heavy_check_mark: | :heavy_check_mark: | :x:                |
+| Verion Information Scan                                      | :heavy_check_mark: | :heavy_check_mark: | :x:                |
+| Default Weak Credentials Scan                                | :heavy_check_mark: | :heavy_check_mark: | :x:                |
+| Weak Crypto Scan                                             | :x:                | :heavy_check_mark: | :x:                |
 
 ## Scan Times
 
-Changing the default number of threads is pretty pointless __unless__  you're running a full scan. A full scan will do a lot more IO so more threads greatly decrease scan times. These are the scan times with a i7-8700k and 2 million files scanned.
-
-### Benchmarks
-
-| Scan Type  | Files Scanned | Threads | Time       |
-| -----------| ------------- | --------| ---------- |
-| Quick scan |  1.8 Million  | 1       | 54 seconds |
-| Quick scan |  1.8 Million  | 2       | 26 seconds |
-| Quick scan |  1.8 Million  | 4       | 15 seconds |
-| Quick scan |  1.8 Million  | 6       | 15 seconds |
-| Quick scan |  1.8 Million  | 12      | 20 seconds |
-| Full scan  |  1.8 Million  | 1       | 196 seconds |
-| Full scan  |  1.8 Million  | 2       | 93 seconds |
-| FUll scan  |  1.8 Million  | 4       | 47 seconds |
-| Full scan  |  1.8 Million  | 6       | 30 seconds |
-| Full scan  |  1.8 Million  | 12      | 29 seconds |
+Changing the default number of threads is pretty pointless __unless__  you're running a full scan. A full scan will do a lot more IO so more threads greatly decrease scan times. These are the scan times with a i7-8700k and 2 million files scanned. :ox:
 
 ### Scan types
 
@@ -158,7 +140,26 @@ This scan will parse ELF files for their dependencies. If we have write access t
 
 SSH is one of one of the most common services that you will find in the real world. It's also quite easy to misconfigure it. This scan will check to see if it can be hardened in anyway.
 
+#### Current User Scan
+
+The current user scan just parses /etc/passwd. With this information we find root accounts, unprotected and missing home directories etc.
+
 ## How To Contribute
 
 - If you can think of a scan idea that has not been implemented, raise it as an issue.
 - If you know how to program, make a pull request :)
+
+### Benchmarks
+
+| Scan Type  | Files Scanned | Threads | Time       |
+| -----------| ------------- | --------| ---------- |
+| Quick scan |  1.8 Million  | 1       | 54 seconds |
+| Quick scan |  1.8 Million  | 2       | 26 seconds |
+| Quick scan |  1.8 Million  | 4       | 15 seconds |
+| Quick scan |  1.8 Million  | 6       | 15 seconds |
+| Quick scan |  1.8 Million  | 12      | 20 seconds |
+| Full scan  |  1.8 Million  | 1       | 196 seconds |
+| Full scan  |  1.8 Million  | 2       | 93 seconds |
+| FUll scan  |  1.8 Million  | 4       | 47 seconds |
+| Full scan  |  1.8 Million  | 6       | 30 seconds |
+| Full scan  |  1.8 Million  | 12      | 29 seconds |

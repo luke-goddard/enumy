@@ -20,9 +20,9 @@
 #include <sys/stat.h>
 #include <stdbool.h>
 #include <unistd.h>
-#include <vector.h>
 
 #include "results.h"
+#include "vector.h"
 
 /* ============================ DEFINES ============================== */
 
@@ -48,7 +48,19 @@ typedef struct Thread_Pool_Args
     char file_name[MAXSIZE];     /* Name of the file to run the scan agasinst */
     All_Results *all_results;    /* Struct containing a linked list of issues found */
     Args *cmdline;               /* Runtime arguments specified by user */
+    vec_void_t *users;           /* Parsed /etc/passwd file */
 } Thread_Pool_Args;
+
+/* This struct holds the parsed /etc/passwd contents */
+typedef struct Parsed_Passwd_Line
+{
+    char username[MAXSIZE]; /* Username of the account */
+    char password[MAXSIZE]; /* Password for the account */
+    char home[MAXSIZE];     /* Home directory for the account */
+    char shell[MAXSIZE];    /* Command to run at login for the accoutn */
+    unsigned int uid;       /* UID for the account */
+    unsigned int gid;       /* GID for the account */
+} Parsed_Passwd_Line;
 
 /* ============================ PROTOTYPES ============================== */
 
@@ -60,7 +72,7 @@ typedef struct Thread_Pool_Args
  * @param all_results This is the struct with linked lists containing issues enumy's found
  * @param cmdline This is a list of run time arguments specified by the userr
  */
-void walk_file_system(char *entry_location, All_Results *all_results, Args *cmdline);
+void walk_file_system(char *entry_location, All_Results *all_results, Args *cmdline, vec_void_t *users);
 
 /* ============================ File_Info Functions  ============================== */
 
@@ -161,7 +173,6 @@ void free_shared_libs(vec_str_t *v);
  * @return a heap pointer containing the file's name
  */
 char *get_file_name(char *full_path);
-
 /**
  * Given a full path this function will return all the files parent directorys 
  * DONT forget to free the returned pointer 

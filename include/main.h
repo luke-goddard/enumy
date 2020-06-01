@@ -5,9 +5,10 @@
 
 #pragma once
 
+#include "vector.h"
+
 #include <stdbool.h>
 #include <thpool.h>
-#include <vector.h>
 
 /* ============================ DEFINES ============================== */
 

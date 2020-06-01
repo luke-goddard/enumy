@@ -30,6 +30,7 @@ typedef struct Walk_Args
     char *walk_path;          /* Root location to walk the file system */
     All_Results *all_results; /* This is a struct to hold the results  */
     Args *cmdline;            /* This is the command line arguments    */
+    vec_void_t *users;        /* Parsed /etc/passwd file */
 } Walk_Args;
 
 /* ============================ GLOBAL VARS ============================== */
@@ -54,6 +55,7 @@ void scan_file_for_issues(Thread_Pool_Args *thread_pool_args)
 {
     struct File_Info *new_file = (File_Info *)malloc(sizeof(File_Info));
     struct stat *stat_buf = malloc(sizeof(struct stat));
+    // vec_void_t *users = thread_pool_args->users;
 
     /* Failed to allocate memory */
     if (stat_buf == NULL)
@@ -126,21 +128,22 @@ void start_scan(All_Results *all_results, Args *args)
     pthread_t walk_thread;
     char *retval;
 
-    struct Walk_Args walk_args = {
-        .walk_path = args->walk_dir,
-        .all_results = all_results,
-        .cmdline = args};
-
     /* Populate the standard shared libaries locations */
     args->valid_shared_libs = &valid_shared_libs;
     find_shared_libs(args->valid_shared_libs);
 
     /* ============================ KICK OFF SYSTEM SCANS ============================== */
 
-
     current_user_scan();
     sys_scan(all_results);
     sshd_conf_scan(all_results);
+    vec_void_t *users = passwd_scan(all_results);
+
+    struct Walk_Args walk_args = {
+        .walk_path = args->walk_dir,
+        .all_results = all_results,
+        .cmdline = args,
+        .users = passwd_scan(all_results)};
 
     /* Walk the file system in the background while we perform other scans */
     pthread_create(&walk_thread, NULL, create_walk_thread, &walk_args);
@@ -154,6 +157,7 @@ void start_scan(All_Results *all_results, Args *args)
 
     /* Cleanup */
     free_shared_libs(args->valid_shared_libs);
+    free_users(users);
 }
 
 /* ============================ STATIC FUNCTIONS ============================== */
@@ -169,12 +173,13 @@ static void *create_walk_thread(void *args)
     All_Results *all_results = arguments->all_results;
     char *walk_path = arguments->walk_path;
     Args *cmdline = arguments->cmdline;
+    vec_void_t *users = arguments->users;
 
     /* Create the threadpool */
     cmdline->fs_threadpool = thpool_init(cmdline->fs_threads);
 
     /* Walk the file system adding each file to the thread pool */
-    walk_file_system(walk_path, all_results, cmdline);
+    walk_file_system(walk_path, all_results, cmdline, users);
 
     /* Cleanup */
     thpool_destroy(cmdline->fs_threadpool);
