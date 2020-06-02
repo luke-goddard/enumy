@@ -17,26 +17,14 @@
 #include "results.h"
 #include "debug.h"
 
-/* ============================ DEFINES ============================== */
-
-#define KEY_J 106
-#define KEY_K 107
-#define KEY_SHOW_HIGH 104
-#define KEY_SHOW_MEDIUM 109
-#define KEY_SHOW_LOW 108
-#define KEY_SHOW_INFO 105
-#define KEY_DEL_CURRENT 100
-#define KEY_DEL_ALL_ID 68
-#define KEY_QUIT 113
-
 /* ============================ GLOBAL VARS ============================== */
 
 /* ============================ TODO ============================== */
 /* Change the global variables naming scheme */
 /* ============================ TODO ============================== */
 
-bool DEBUG = false;
-bool DEBUG_EXTRA = false;
+bool Debug = false;
+bool DebugExtra = false;
 
 /* ============================ PROTOTYPES ============================== */
 
@@ -71,35 +59,39 @@ int main(int argc, char *argv[])
 
     strncpy(args->save_location, "enumy.json", sizeof(args->save_location) - 1);
 
-    DEBUG = false;
-
     All_Results *all_results = initilize_total_results();
 
-    while ((opt = getopt(argc, argv, "sd:fhno:i:w:t:")) != -1)
+    while ((opt = getopt(argc, argv, "sd:fhno:i:w:t:p:g:")) != -1)
     {
         switch (opt)
         {
+        /* Help */
         case 'h':
             banner();
             help();
             break;
 
+        /* Enable full scan */
         case 'f':
             args->enabled_full_scans = true;
             break;
 
+        /* Output location */
         case 'o':
             strncpy(args->save_location, optarg, MAXSIZE - 1);
             break;
 
+        /* Ignore directory */
         case 'i':
             strncpy(args->ignore_scan_dir, optarg, MAXSIZE - 1);
             break;
 
+        /* Walk directory */
         case 'w':
             strncpy(args->walk_dir, optarg, MAXSIZE - 1);
             break;
 
+        /* Threads */
         case 't':
             userinput_threads = atoi(optarg);
             if ((userinput_threads < 1) || (userinput_threads > 64))
@@ -111,12 +103,36 @@ int main(int argc, char *argv[])
             args->fs_threads = userinput_threads;
             break;
 
+        /* Debug level */
         case 'd':
-            DEBUG = true;
+            Debug = true;
             if (atoi(optarg) == 2)
-                DEBUG_EXTRA = true;
+                DebugExtra = true;
             break;
 
+        /* Print level */
+        case 'p':
+            if (!set_disable_print_level(optarg))
+            {
+                banner();
+                printf("-p requires one or more of the following characters: h m l i\n");
+                printf("Where h=High, m=Medium, l=Low, i=Info\n");
+                exit(EXIT_FAILURE);
+            }
+            break;
+
+        /* Print level greater than */
+        case 'g':
+            if (!set_print_lvl_greater_than(optarg))
+            {
+                banner();
+                printf("-p requires one of the following characters: h m l\n");
+                printf("Where h=High, m=Medium, l=Low\n");
+                exit(EXIT_FAILURE);
+            }
+            break;
+
+        /* Enabled missing shared object scan */
         case 's':
             args->enabled_missing_so = true;
             break;
@@ -131,7 +147,7 @@ int main(int argc, char *argv[])
     banner();
     printf("\n\n");
 
-    if (DEBUG)
+    if (Debug)
         show_runtime_args(args);
 
     /* Make sure that we scan scave our results */
@@ -167,20 +183,34 @@ static void banner()
 static void help()
 {
     puts("");
-    puts("------------------------------------------");
+    puts(" Enumy - Used to enumerate the target the target environment & look for");
+    puts(" common security vulnerabilities and hostspots");
+    puts(" ----------------------------------------------------------------------");
     puts("");
-    puts("Enumy - Used to enumerate the target");
-    puts("the target environment and look for common");
-    puts("security vulnerabilities and hostspots");
+    puts(" Output");
+    puts("  -o <loc>     OUTPUT results to location");
     puts("");
-    puts(" -o <loc>     Save results to location");
-    puts(" -i <loc>     Ignore files in this directory (usefull for network shares)");
-    puts(" -w <loc>     Only walk files in this directory (usefull for devlopment)");
-    puts(" -t <num>     Threads (default 4)");
-    puts(" -f           Run full scans");
-    puts(" -s           Show missing shared libaries");
-    puts(" -d <1|2>     Debug mode (1 low, 2 high)");
-    puts(" -h           Show help");
+    puts(" Walking Filesystem");
+    puts("  -i <loc>     IGNORE files in this directory (usefull for network shares)");
+    puts("  -w <loc>     Only WALK files in this directory (usefull for devlopment)");
+    puts("");
+    puts(" Scan Options");
+    puts("  -f           run FULL scans");
+    puts("  -s           Show missing Shared libaries");
+    puts("  -t <num>     THREADS (default 4)");
+    puts("");
+    puts(" Printing Options");
+    puts("  -d <1|2>     DEBUG mode (1 low, 2 high)");
+    puts("  -g <H|M|L>   print to screen values GREATER than or equal to high, medium & low");
+    puts("  -p <H|M|L|I> do not PRINT to screen high, medium, low & info issues");
+    puts("");
+    puts(" Other Options");
+    puts("  -h           Show HELP");
+    puts("");
+    puts(" Example:");
+    puts("   ./enumy -i /mnt/smb/ -f -t 12 -g l");
+    puts("   Ignoring files in /mnt/smb/, run a full scan with 12 threads printing");
+    puts("   HIGH, MED and LOW findings");
     exit(0);
 }
 

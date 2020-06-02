@@ -419,6 +419,31 @@ static void log_issue_to_screen(Result *new_result, int severity)
     char ls_result[MAXSIZE];
     char *color_code, *category;
 
+    if ((severity == HIGH) && ShowHigh)
+    {
+        color_code = COLOR_HIGH;
+        category = "HIGH";
+    }
+    else if ((severity == MEDIUM) && (ShowMed))
+    {
+        color_code = COLOR_MEDIUM;
+        category = "MEDIUM";
+    }
+    else if ((severity == LOW) && (ShowLow))
+    {
+        color_code = COLOR_LOW;
+        category = "LOW";
+    }
+    else if ((severity == INFO) && (ShowInfo))
+    {
+        color_code = COLOR_INFO;
+        category = "INFO";
+    }
+    else
+    {
+        return;
+    }
+
     if (new_result->no_ls == false)
     {
         char ls_cmd[MAXSIZE * 2];
@@ -436,30 +461,6 @@ static void log_issue_to_screen(Result *new_result, int severity)
     }
     else
         ls_result[0] = '\0';
-
-    if (severity == HIGH)
-    {
-        color_code = COLOR_HIGH;
-        category = "HIGH";
-    }
-
-    else if (severity == MEDIUM)
-    {
-        color_code = COLOR_MEDIUM;
-        category = "MEDIUM";
-    }
-
-    else if (severity == LOW)
-    {
-        color_code = COLOR_LOW;
-        category = "LOW";
-    }
-
-    else
-    {
-        color_code = COLOR_INFO;
-        category = "INFO";
-    }
 
     printf("Severity: %s%-7s%s Name: %-80s",
            color_code, category, COLOR_RESET,

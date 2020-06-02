@@ -14,18 +14,219 @@
 #include "results.h"
 #include "scan.h"
 #include "error_logger.h"
+#include "vector.h"
 #include "main.h"
 
-/* ============================ CONSTS ============================== */
-
-/* It's bad practice to have global write enabled on files in these directories */
-const char *BadGlobalWriteDirs[] = {
-    "/boot/", "/root/", "/etc/", "/opt/", "/proc/", "/run/", "/srv/", "/sys/", "/usr/", "/var/"};
+#include <stdio.h>
+#include <stdlib.h>
+#include <errno.h>
+#include <string.h>
+#include <stdbool.h>
+#include <pwd.h>
+#include <grp.h>
+#include <sys/types.h>
 
 /* ============================ PROTOTYPES ============================== */
 
+void permissions_scan(File_Info *fi, All_Results *ar, Args *cmdline, vec_void_t *users);
+
+static void check_global_write(All_Results *ar, File_Info *fi);
+static void get_first_parent_dir(char *file_loc, char *buf);
+static bool get_first_dir_that_protects_file(char *file_location, char *parent_dir_buf, All_Results *ar);
+static void check_no_owner(All_Results *ar, File_Info *fi, vec_void_t *users);
+static void check_uneven_permissions(File_Info *fi, All_Results *ar);
+static bool check_uneven_permission_sets(bool r_high, bool w_high, bool x_high, bool r_low, bool w_low, bool x_low);
+
 /* ============================ FUNCTIONS  ============================== */
 
-// void permissions_scan(All_Results *ar, File_Info *fi, Args *cmdline)
-// {
-// }
+/**
+ * This scan will check the current file for common weak permissions
+ * @param ar This is a struct containing enumy's results
+ * @param fi This is the current file that is going to be scanned
+ * @param users This is a struct containg the user data
+ */
+void permissions_scan(File_Info *fi, All_Results *ar, Args *cmdline, vec_void_t *users)
+{
+    if (cmdline->enabled_full_scans != true)
+        return;
+
+    check_global_write(ar, fi);
+    check_no_owner(ar, fi, users);
+    check_uneven_permissions(fi, ar);
+}
+
+/**
+ * This function will check the current file to see if it resides in a location 
+ * that should be read only
+ */
+static void check_global_write(All_Results *ar, File_Info *fi)
+{
+    if (!has_global_write(fi))
+        return;
+
+    /* Check to see if the file is protected by any parent directories */
+    char parent_buf[MAXSIZE] = {'\0'};
+    char issue_buf[MAXSIZE + 50] = {'\0'};
+
+    if (get_first_dir_that_protects_file(fi->location, parent_buf, ar))
+    {
+        /* The directory is protected */
+        snprintf(issue_buf, (sizeof(issue_buf) - 1), "Found a protected world writable file in: %s", parent_buf);
+        struct stat stats;
+        if ((stat(parent_buf, &stats) != 0))
+        {
+            log_error_errno_loc(ar, "Failed to stat directory", parent_buf, errno);
+            add_issue(LOW, fi->location, ar, issue_buf, "ENUMY failed to stat the parent directory");
+            return;
+        }
+        struct passwd *data = getpwuid(stats.st_uid);
+        if (data == NULL)
+        {
+            log_error_errno_loc(ar, "Failed to stat directory", parent_buf, errno);
+            add_issue(LOW, fi->location, ar, issue_buf, "ENUMY failed to got the owner of the directory");
+            return;
+        }
+
+        add_issue(LOW, fi->location, ar, issue_buf, data->pw_name);
+        return;
+    }
+
+    /* Report global writable file that is NOT protected by parent directories */
+    memset(parent_buf, '\0', sizeof(parent_buf));
+    get_first_parent_dir(fi->location, parent_buf);
+    snprintf(issue_buf, (sizeof(issue_buf) - 1), "Found an unprotected world writable file in: %s", parent_buf);
+    add_issue(HIGH, fi->location, ar, issue_buf, "");
+}
+
+/**
+ * This scan will check the current file to see a valid UID is attached to it
+ * @param ar This is a struct containing enumy's results
+ * @param fi This is the current file that is going to be scanned
+ */
+static void check_no_owner(All_Results *ar, File_Info *fi, vec_void_t *users)
+{
+    /* Found a valid UID */
+    for (int i = 0; i < users->length; i++)
+    {
+        Parsed_Passwd_Line *current = users->data[i];
+        if (current->uid == fi->stat->st_uid)
+        {
+            return;
+        }
+    }
+    char issue_buf[MAXSIZE + 50] = {'\0'};
+    snprintf(issue_buf, (sizeof(issue_buf) - 1), "Found a file with nonexistant GID: %d", fi->stat->st_gid);
+    add_issue(MEDIUM, fi->location, ar, issue_buf, "");
+}
+
+/**
+ * This function gets the first parent directory for a given file
+ * so /tmp/test/1 would return /tmp/
+ * @param file_loc location of the file to check 
+ * @param buf location to store the result
+ */
+static void get_first_parent_dir(char *file_loc, char *buf)
+{
+    int file_path_size = strlen(file_loc);
+
+    for (int i = 0; i < file_path_size; i++)
+    {
+        buf[i] = file_loc[i];
+
+        /* break on second slash */
+        if ((buf[i] == '/') && (i != 0))
+            return;
+    }
+}
+
+/**
+ * A file might have global write enabled on it but a parent directory 
+ * might not have the executable bit set, this means that you won't be able
+ * to modify the file. 
+ * @param file_locaiton location of the file to check 
+ * @param parent_dir_buf Place to save the result 
+ * @return True if the file has a protector else False
+ */
+static bool get_first_dir_that_protects_file(char *file_location, char *parent_dir_buf, All_Results *ar)
+{
+    int path_len = strlen(file_location);
+    char current;
+
+    for (int i = 0; i < path_len; i++)
+    {
+        current = file_location[i];
+        parent_dir_buf[i] = current;
+
+        if (current == '/')
+        {
+            struct stat stats;
+            if (stat(parent_dir_buf, &stats) != 0)
+            {
+                log_error_errno_loc(ar, "Failed to stat directory", parent_dir_buf, errno);
+                continue;
+            }
+            if (!(stats.st_mode & S_IXOTH))
+            {
+                parent_dir_buf[i + 1] = '\0';
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
+/**
+ * This scan will check to see if any of
+ * - Owner permission bits are less than group permission bits 
+ * - Owner permission bits are less than other permission bits 
+ * - Group permission bits are less than other permission bits 
+ * @param fi The file we're scanning
+ * @param ar enumy's results 
+ */
+static void check_uneven_permissions(File_Info *fi, All_Results *ar)
+{
+    /* OWNER */
+    bool owner_read = ((1 << 8) & fi->stat->st_mode);
+    bool owner_write = ((1 << 7) & fi->stat->st_mode);
+    bool owner_execute = ((1 << 6) & fi->stat->st_mode);
+
+    /* GROUP */
+    bool group_read = (1 << 5) & fi->stat->st_mode;
+    bool group_write = (1 << 4) & fi->stat->st_mode;
+    bool group_execute = (1 << 3) & fi->stat->st_mode;
+
+    /* OTHER */
+    bool other_read = (1 << 2) & fi->stat->st_mode;
+    bool other_write = (1 << 1) & fi->stat->st_mode;
+    bool other_execute = (1 << 0) & fi->stat->st_mode;
+
+    /* OWNER < GROUP */
+    if (check_uneven_permission_sets(owner_read, owner_write, owner_execute, group_read, group_write, group_execute))
+        add_issue(MEDIUM, fi->location, ar, "Group permissions are higher than Owner permissions", "");
+
+    /* OWNER < OTHER */
+    if (check_uneven_permission_sets(owner_read, owner_write, owner_execute, other_read, other_write, other_execute))
+        add_issue(MEDIUM, fi->location, ar, "Other permissions are higher than Owner permissions", "");
+
+    /* GROUP < OTHER */
+    if (check_uneven_permission_sets(group_read, group_write, group_execute, other_read, other_write, other_execute))
+        add_issue(MEDIUM, fi->location, ar, "Other permissions are higher than Group permissions", "");
+}
+
+/**
+ *               | read | write | execute
+ * owner         |  1   | 0     | 1
+ * user          |  0   | 1     | 0
+ * ========================================
+ *    !owner     |  0   | 1     | 0
+ * ========================================
+ * !owner & user |  0   | 1     | 0
+ * owner write is less than user write. 
+ */
+static bool check_uneven_permission_sets(bool r_high, bool w_high, bool x_high, bool r_low, bool w_low, bool x_low)
+{
+    return (
+        (!r_high && r_low) ||
+        (!w_high && w_low) ||
+        (!x_high && x_low));
+}
