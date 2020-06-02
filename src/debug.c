@@ -31,7 +31,6 @@ bool set_disable_print_level(char *s)
     for (int i = 0; i < len; i++)
     {
         current = s[i];
-        printf("%c\n", current);
         if (current == 'h' || current == 'H')
         {
             ShowHigh = true;
