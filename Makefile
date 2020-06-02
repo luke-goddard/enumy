@@ -21,16 +21,16 @@ CFLAGS := -W
 all: $(EXE)
 
 $(EXE): $(OBJ) $(OBJ_SCAN)
-	$(CC) $(LDFLAGS) $^ $(LDLIBS) -o $@ -lpthread $(STATIC) $(ARCH) -g -Wall -Wextra -O3 
+	$(CC) $(LDFLAGS) $^ $(LDLIBS) -o $@ -lpthread $(STATIC) $(ARCH) -g -Wall -Wextra -O3
 
 $(EXE_SCAN): $(OBJ_SCAN)
-	$(CC) $(LDFLAGS) $^ $(LDLIBS) -o $@ -lpthread $(STATIC) $(ARCH) -g -Wall -Wextra -O3 
+	$(CC) $(LDFLAGS) $^ $(LDLIBS) -o $@ -lpthread $(STATIC) $(ARCH) -g -Wall -Wextra -O3
 	
 $(OBJ_SCAN_DIR)/%.o: $(SCAN_DIR)/%.c | $(OBJ_SCAN_DIR)
-	$(CC) $(CPPFLAGS) $(CFLAGS) -c $< -o $@ -lpthread $(STATIC) $(ARCH) -g -Wall -Wextra -O3 
+	$(CC) $(CPPFLAGS) $(CFLAGS) -c $< -o $@ -lpthread $(STATIC) $(ARCH) -g -Wall -Wextra -O3
 
 $(OBJ_DIR)/%.o: $(SRC_DIR)/%.c | $(OBJ_DIR)
-	$(CC) $(CPPFLAGS) $(CFLAGS) -c $< -o $@ -lpthread $(STATIC) $(ARCH) -g -Wall -Wextra -O3 
+	$(CC) $(CPPFLAGS) $(CFLAGS) -c $< -o $@ -lpthread $(STATIC) $(ARCH) -g -Wall -Wextra -O3
 
 $(OBJ_DIR):
 	mkdir $@
@@ -44,19 +44,16 @@ cov:
 	make clean 
 	cov-build --dir cov-int make 
 	tar czvf enumy-cov.tgz cov-int
-	curl --form token=`cat cov-token` \
-	--form email=`cat email` \
-	--form file=@enumy-cov.tgz\
-	--form version="Version" \
-	--form description="Description" \
-	https://scan.coverity.com/builds?project=luke-goddard%2Fenumy
 
 cppcheck:
 	cppcheck --enable=all src/* -I include
 
 .PHONY: asci
 
-ascii: 
-	make clean 
-	make 
-	termtosvg docs/svg/example.svg -c "./enumy -t 8"
+release: 
+	./build.sh all
+	make clean
+	make
+	make cppcheck
+	make cov
+	python3 scripts/benchmark.py

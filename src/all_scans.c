@@ -55,7 +55,7 @@ void scan_file_for_issues(Thread_Pool_Args *thread_pool_args)
 {
     struct File_Info *new_file = (File_Info *)malloc(sizeof(File_Info));
     struct stat *stat_buf = malloc(sizeof(struct stat));
-    // vec_void_t *users = thread_pool_args->users;
+    vec_void_t *users = thread_pool_args->users;
 
     /* Failed to allocate memory */
     if (stat_buf == NULL)
@@ -98,11 +98,12 @@ void scan_file_for_issues(Thread_Pool_Args *thread_pool_args)
 
     suid_bit_scan(new_file, thread_pool_args->all_results);
     guid_bit_scan(new_file, thread_pool_args->all_results);
-    capabilities_scan(new_file, thread_pool_args->all_results, thread_pool_args->cmdline);
     intresting_files_scan(new_file, thread_pool_args->all_results);
     core_dump_scan(new_file, thread_pool_args->all_results);
-    rpath_scan(new_file, thread_pool_args->all_results, thread_pool_args->cmdline);
     lotl_scan(new_file, thread_pool_args->all_results);
+    capabilities_scan(new_file, thread_pool_args->all_results, thread_pool_args->cmdline);
+    rpath_scan(new_file, thread_pool_args->all_results, thread_pool_args->cmdline);
+    permissions_scan(new_file, thread_pool_args->all_results, thread_pool_args->cmdline, users);
 
     /* ============================ FINISH FILE SCANS ============================== */
 
@@ -143,7 +144,7 @@ void start_scan(All_Results *all_results, Args *args)
         .walk_path = args->walk_dir,
         .all_results = all_results,
         .cmdline = args,
-        .users = passwd_scan(all_results)};
+        .users = users};
 
     /* Walk the file system in the background while we perform other scans */
     pthread_create(&walk_thread, NULL, create_walk_thread, &walk_args);

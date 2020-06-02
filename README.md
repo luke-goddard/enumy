@@ -3,6 +3,7 @@
 [![GitHub license](https://img.shields.io/github/license/Naereen/StrapDown.js.svg)](https://github.com/Naereen/StrapDown.js/blob/master/LICENSE)
 [![Total alerts](https://img.shields.io/lgtm/alerts/g/luke-goddard/enumy.svg?logo=lgtm&logoWidth=18)](https://lgtm.com/projects/g/luke-goddard/enumy/alerts/)
 [![Help Wanted](https://img.shields.io/github/issues/luke-goddard/enumy/help%20wanted?color=green)](https://github.com/luke-goddard/enumy/issues?q=is%3Aissue+is%3Aopen+label%3A%22help+wanted%22)
+[![Language grade: C/C++](https://img.shields.io/lgtm/grade/cpp/g/luke-goddard/enumy.svg?logo=lgtm&logoWidth=18)](https://lgtm.com/projects/g/luke-goddard/enumy/context:cpp)
 
 # Enumy
 
@@ -72,6 +73,10 @@ To remove the glibc dependency and statically link all libaries/compile with mus
 cd output
 ```
 
+## Scan Times
+
+![enumy benchmarks](benchmark.png?raw=true)
+
 ## Scans That've Been Implemented
 
 Below is the ever growing list of scans that have been implemented.
@@ -88,19 +93,21 @@ Below is the ever growing list of scans that have been implemented.
 | [Living Off The Land Scan](#living-off-the-land-scan)        | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: |
 | [Current User Scan](#current-user-scan)                      | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: |
 | [*.so Injection Scan](#dynamic-shared-object-injection-scan) | :x:                | :heavy_check_mark: | :heavy_check_mark: |
-| Permissions Scan                                             | :x:                | :heavy_check_mark: | :x:                |
+| [Permissions Scan](#permissions-scan)                        | :x:                | :heavy_check_mark: | :heavy_check_mark: |
 | Docker Scan                                                  | :heavy_check_mark: | :heavy_check_mark: | :x:                |
 | Environment Scan                                             | :heavy_check_mark: | :heavy_check_mark: | :x:                |
 | Privilaged Access Scan                                       | :heavy_check_mark: | :heavy_check_mark: | :x:                |
 | Networking Scan                                              | :heavy_check_mark: | :heavy_check_mark: | :x:                |
 | System Info Scan                                             | :heavy_check_mark: | :heavy_check_mark: | :x:                |
-| Verion Information Scan                                      | :heavy_check_mark: | :heavy_check_mark: | :x:                |
+| Version Information Scan                                     | :heavy_check_mark: | :heavy_check_mark: | :x:                |
 | Default Weak Credentials Scan                                | :heavy_check_mark: | :heavy_check_mark: | :x:                |
 | Weak Crypto Scan                                             | :x:                | :heavy_check_mark: | :x:                |
 
-## Scan Times
+## How To Contribute
 
-Changing the default number of threads is pretty pointless __unless__  you're running a full scan. A full scan will do a lot more IO so more threads greatly decrease scan times. These are the scan times with a i7-8700k and 2 million files scanned. :ox:
+- If you can think of a scan idea that has not been implemented, raise it as an issue.
+- If you know how to program, make a pull request :)
+- All contributions are welcome
 
 ### Scan types
 
@@ -144,22 +151,6 @@ SSH is one of one of the most common services that you will find in the real wor
 
 The current user scan just parses /etc/passwd. With this information we find root accounts, unprotected and missing home directories etc.
 
-## How To Contribute
+#### Permisionss Scan
 
-- If you can think of a scan idea that has not been implemented, raise it as an issue.
-- If you know how to program, make a pull request :)
-
-### Benchmarks
-
-| Scan Type  | Files Scanned | Threads | Time       |
-| -----------| ------------- | --------| ---------- |
-| Quick scan |  1.8 Million  | 1       | 54 seconds |
-| Quick scan |  1.8 Million  | 2       | 26 seconds |
-| Quick scan |  1.8 Million  | 4       | 15 seconds |
-| Quick scan |  1.8 Million  | 6       | 15 seconds |
-| Quick scan |  1.8 Million  | 12      | 20 seconds |
-| Full scan  |  1.8 Million  | 1       | 196 seconds |
-| Full scan  |  1.8 Million  | 2       | 93 seconds |
-| FUll scan  |  1.8 Million  | 4       | 47 seconds |
-| Full scan  |  1.8 Million  | 6       | 30 seconds |
-| Full scan  |  1.8 Million  | 12      | 29 seconds |
+This scan is going to find file that are globaly writable files, uneven permissions and unowned files. See [here](http://infosecisland.com/blogview/8494-Keeping-Linux-File-Systems-Clean-and-Secure.html) for inspiration of the scan.

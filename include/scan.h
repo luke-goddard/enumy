@@ -125,6 +125,14 @@ int guid_bit_scan(File_Info *fi, All_Results *ar);
  */
 void lotl_scan(File_Info *fi, All_Results *ar);
 
+/**
+ * This scan will check the current for for common weak permissions
+ * @param ar This is a struct containing enumy's results
+ * @param fi This is the current file that is going to be scanned
+ * @param cmdline the runtime arguments for enumy
+ */
+void permissions_scan(File_Info *fi, All_Results *ar, Args *cmdline, vec_void_t *users);
+
 /* ============================ SYSTEM SCANS ============================== */
 
 /**

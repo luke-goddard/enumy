@@ -68,6 +68,7 @@ vec_void_t *passwd_scan(All_Results *ar)
         check_home_exists((Parsed_Passwd_Line *)contents->data[i], ar);
         check_password_hashes((Parsed_Passwd_Line *)contents->data[i], ar);
     }
+
     return contents;
 }
 
@@ -158,9 +159,7 @@ static void check_login_shell(Parsed_Passwd_Line *current, All_Results *ar)
 
     /* Test if the login shell is writable */
     if (stat_buf->st_mode & S_IWOTH)
-    {
         add_issue(HIGH, current->shell, ar, "Found a that's login shell is writable", "");
-    }
 
     free(stat_buf);
     return;
@@ -244,100 +243,14 @@ static vec_void_t *parse_etc_passwd(All_Results *ar)
 FAIL:
     return NULL;
 }
-// static bool parse_etc_passwd_line(char *current_line, Parsed_Passwd_Line *storage, int line_number, All_Results *ar)
-// {
-//     /* 0       :1       :2  :3  :4           :5       :6 */
-//     /* username:password:UID:GID:User_comment:home_dir:command */
 
-//     int index = 0;
-
-//     long int temp;
-//     bool first = true;
-
-//     printf("LINE -> %s\n", current_line);
-//     for (char *p = strtok(current_line, ":"); p != NULL; p = strtok(NULL, ":"))
-//     {
-//         switch (index)
-//         {
-//         /* Parse the username section */
-//         case 0:
-//             strncpy(storage->username, p, sizeof(storage->username) - 1);
-//             printf("username -> %s\n", storage->username);
-//             break;
-
-//         /* Parse the password section */
-//         case 1:
-//             strncpy(storage->password, p, sizeof(storage->password) - 1);
-//             printf("Password -> %s\n", storage->password);
-//             break;
-
-//         /* Parse the User ID */
-//         case 2:
-//             temp = strtol(p, NULL, 10);
-//             if (temp == LONG_MIN)
-//             {
-//                 log_error_loc(ar, "Failed to parse UID in /etc/passwd, integer underflow", p);
-//                 goto FAIL;
-//             }
-//             if (temp == LONG_MAX)
-//             {
-//                 log_error_loc(ar, "Failed to parse UID in /etc/passwd, integer overflow", p);
-//                 goto FAIL;
-//             }
-//             storage->uid = (unsigned int)temp;
-//             printf("uid -> %d\n", storage->uid);
-//             break;
-
-//         /* Parse the GID */
-//         case 3:
-//             temp = strtol(p, NULL, 10);
-//             if (temp == LONG_MIN)
-//             {
-//                 log_error_loc(ar, "Failed to parse UID in /etc/passwd, integer underflow", p);
-//                 goto FAIL;
-//             }
-//             if (temp == LONG_MAX)
-//             {
-//                 log_error_loc(ar, "Failed to parse UID in /etc/passwd, integer overflow", p);
-//                 goto FAIL;
-//             }
-//             storage->gid = (unsigned int)temp;
-//             printf("gid -> %d\n", storage->gid);
-//             break;
-
-//         /* Parse the home directory */
-//         case 5:
-//             strncpy(storage->home, p, sizeof(storage->home) - 1);
-//             printf("HOME -> %s\n", storage->home);
-//             break;
-
-//         /* Parse the entry command */
-//         case 6:
-//             strncpy(storage->shell, p, sizeof(storage->shell) - 1);
-//             printf("SHELL -> %s\n", storage->shell);
-
-//             /* Get rid of new line character */
-//             if (storage->shell[strlen(storage->shell)] == '\n')
-//                 storage->shell[strlen(storage->shell)] = '\0';
-//             break;
-//         }
-//         index++;
-//     }
-
-//     if (index < 6)
-//     {
-//         char buf[MAXSIZE];
-//         snprintf(buf, MAXSIZE - 1, "line number: %d", line_number);
-//         log_error_loc(ar, "Failed to parse /etc/passwd", buf);
-//         return false;
-//     }
-
-//     return true;
-
-// FAIL:
-//     return false;
-// }
-
+/**
+ * This function will take a single line from /etc/password and tokenize the contents of the line
+ * into the storage struct. 
+ * @param current_line The current line to parse
+ * @param storage The place to store the tokenized line
+ * @param ar All the results (needed for the logger)
+ */
 static bool parse_etc_passwd_line(char *current_line, Parsed_Passwd_Line *storage, All_Results *ar)
 {
     /* 0       :1       :2  :3  :4           :5       :6 */
@@ -350,14 +263,18 @@ static bool parse_etc_passwd_line(char *current_line, Parsed_Passwd_Line *storag
 
     for (int x = 0; x < line_len; x++)
     {
+        /* Tokenize the line */
         if (current_line[x] == ':')
         {
+            /* Username */
             if (token_n == 0)
                 strncpy(storage->username, temp_buff, sizeof(storage->username));
 
+            /* Password */
             else if (token_n == 1)
-                strncpy(storage->password, temp_buff, sizeof(storage->username));
+                strncpy(storage->password, temp_buff, sizeof(storage->password));
 
+            /* UID */
             else if (token_n == 2)
             {
                 if (!parse_int(temp_buff, &storage->uid))
@@ -367,6 +284,7 @@ static bool parse_etc_passwd_line(char *current_line, Parsed_Passwd_Line *storag
                 }
             }
 
+            /* GID */
             else if (token_n == 3)
             {
                 if (!parse_int(temp_buff, &storage->gid))
@@ -375,24 +293,34 @@ static bool parse_etc_passwd_line(char *current_line, Parsed_Passwd_Line *storag
                     return false;
                 }
             }
+            /* Home */
             else if (token_n == 5)
                 strncpy(storage->home, temp_buff, sizeof(storage->home));
 
+            /* Reset ready for the next field */
             char_count = 0;
             token_n++;
             memset(temp_buff, '\0', sizeof(temp_buff));
             continue;
         }
 
+        /* Copy the current character into the temp buffer */
         temp_buff[char_count] = current_line[x];
         char_count++;
 
+        /* Shell */
         if ((token_n == 6) || (x == line_len - 1))
             strncpy(storage->shell, temp_buff, sizeof(storage->shell));
     }
     return true;
 }
 
+/**
+ * This function will convert string represetation of an int and convert it
+ * into an unsigned int
+ * @param s The int represented as a string
+ * @param i_ptr The place to save the int
+ */
 static bool parse_int(char *s, unsigned int *i_ptr)
 {
     long int temp_int = strtol(s, NULL, 10);
