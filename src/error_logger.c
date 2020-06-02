@@ -267,7 +267,7 @@ static void log_loc(vec_str_t *v, char *msg, char *loc, char *id)
 {
     char merge_msg[ERROR_MAX_SIZE] = {'\0'};
 
-    if (DEBUG)
+    if (Debug)
         fprintf(stderr, "[!] - %s%s -> %s: %s%s\n", COLOR_DIM, id, msg, loc, COLOR_RESET);
 
     strncpy(merge_msg, msg, sizeof(merge_msg) - 1);
@@ -284,7 +284,7 @@ static void log_errno(vec_str_t *v, int err, char *msg, char *id)
 {
     char merge_msg[ERROR_MAX_SIZE] = {'\0'};
 
-    if (DEBUG)
+    if (Debug)
         fprintf(stderr, "[!] - %s%s -> %s: %s%s\n", COLOR_DIM, id, msg, strerror(err), COLOR_RESET);
 
     strncpy(merge_msg, msg, sizeof(merge_msg) - 1);
@@ -301,7 +301,7 @@ static void log_errno_loc(vec_str_t *v, char *msg, char *loc, int err, char *id)
 {
     char merge_msg[ERROR_MAX_SIZE] = {'\0'};
 
-    if (DEBUG)
+    if (Debug)
         fprintf(stderr, "[!] - %s%s -> %s: %s %s%s\n", COLOR_DIM, id, msg, strerror(err), loc, COLOR_RESET);
 
     strncpy(merge_msg, msg, sizeof(merge_msg) - 1);

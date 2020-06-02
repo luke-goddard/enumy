@@ -34,7 +34,6 @@ static void check_global_write(All_Results *ar, File_Info *fi);
 static void get_first_parent_dir(char *file_loc, char *buf);
 static bool get_first_dir_that_protects_file(char *file_location, char *parent_dir_buf, All_Results *ar);
 static void check_no_owner(All_Results *ar, File_Info *fi, vec_void_t *users);
-static void check_no_group(All_Results *ar, File_Info *fi);
 static void check_uneven_permissions(File_Info *fi, All_Results *ar);
 static bool check_uneven_permission_sets(bool r_high, bool w_high, bool x_high, bool r_low, bool w_low, bool x_low);
 
@@ -54,7 +53,6 @@ void permissions_scan(File_Info *fi, All_Results *ar, Args *cmdline, vec_void_t 
     check_global_write(ar, fi);
     check_no_owner(ar, fi, users);
     check_uneven_permissions(fi, ar);
-    // check_no_group(ar, fi);
 }
 
 /**
@@ -122,26 +120,6 @@ static void check_no_owner(All_Results *ar, File_Info *fi, vec_void_t *users)
 }
 
 /**
- * This scan will check the current file to see if a valid GID is attached to it 
- * @param ar This is a struct containing enumy's results
- * @param fi This is the current file that is going to be scanned
- */
-static void check_no_group(All_Results *ar, File_Info *fi)
-{
-    /* =================== TODO ==================== */
-    /* ENABLE this scan when parsing of /etc/groups has been completed */
-    /* =================== TODO ==================== */
-
-    struct passwd *data = getpwuid(fi->stat->st_uid);
-    if ((data == NULL) && (errno == ENOENT))
-    {
-        char issue_buf[MAXSIZE + 50] = {'\0'};
-        snprintf(issue_buf, (sizeof(issue_buf) - 1), "Found a file with nonexistant UID: %d", fi->stat->st_uid);
-        add_issue(MEDIUM, fi->location, ar, issue_buf, "");
-    }
-}
-
-/**
  * This function gets the first parent directory for a given file
  * so /tmp/test/1 would return /tmp/
  * @param file_loc location of the file to check 
@@ -197,26 +175,40 @@ static bool get_first_dir_that_protects_file(char *file_location, char *parent_d
     return false;
 }
 
+/**
+ * This scan will check to see if any of
+ * - Owner permission bits are less than group permission bits 
+ * - Owner permission bits are less than other permission bits 
+ * - Group permission bits are less than other permission bits 
+ * @param fi The file we're scanning
+ * @param ar enumy's results 
+ */
 static void check_uneven_permissions(File_Info *fi, All_Results *ar)
 {
+    /* OWNER */
     bool owner_read = ((1 << 8) & fi->stat->st_mode);
     bool owner_write = ((1 << 7) & fi->stat->st_mode);
     bool owner_execute = ((1 << 6) & fi->stat->st_mode);
 
+    /* GROUP */
     bool group_read = (1 << 5) & fi->stat->st_mode;
     bool group_write = (1 << 4) & fi->stat->st_mode;
     bool group_execute = (1 << 3) & fi->stat->st_mode;
 
+    /* OTHER */
     bool other_read = (1 << 2) & fi->stat->st_mode;
     bool other_write = (1 << 1) & fi->stat->st_mode;
     bool other_execute = (1 << 0) & fi->stat->st_mode;
 
+    /* OWNER < GROUP */
     if (check_uneven_permission_sets(owner_read, owner_write, owner_execute, group_read, group_write, group_execute))
         add_issue(MEDIUM, fi->location, ar, "Group permissions are higher than Owner permissions", "");
 
+    /* OWNER < OTHER */
     if (check_uneven_permission_sets(owner_read, owner_write, owner_execute, other_read, other_write, other_execute))
         add_issue(MEDIUM, fi->location, ar, "Other permissions are higher than Owner permissions", "");
 
+    /* GROUP < OTHER */
     if (check_uneven_permission_sets(group_read, group_write, group_execute, other_read, other_write, other_execute))
         add_issue(MEDIUM, fi->location, ar, "Other permissions are higher than Group permissions", "");
 }
@@ -226,10 +218,10 @@ static void check_uneven_permissions(File_Info *fi, All_Results *ar)
  * owner         |  1   | 0     | 1
  * user          |  0   | 1     | 0
  * ========================================
- *    ~owner     |  0   | 1     | 0
+ *    !owner     |  0   | 1     | 0
  * ========================================
- * ~owner & user |  0   | 1     | 0
- * owner write is greater than user write. 
+ * !owner & user |  0   | 1     | 0
+ * owner write is less than user write. 
  */
 static bool check_uneven_permission_sets(bool r_high, bool w_high, bool x_high, bool r_low, bool w_low, bool x_low)
 {
