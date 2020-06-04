@@ -86,7 +86,7 @@ static void permit_empty_password_scan(All_Results *ar, vec_str_t *v)
         return;
 
     if (strstr(v->data[index], " yes") != NULL)
-        add_issue(HIGH, SSHD_CONF_LOC, ar, "SSHD Access via empty password is allowed", v->data[index]);
+        add_issue(HIGH, AUDIT, SSHD_CONF_LOC, ar, "SSHD Access via empty password is allowed", v->data[index]);
 }
 
 /**
@@ -102,11 +102,11 @@ static void banner_enabled_scan(All_Results *ar, vec_str_t *v)
 
     if (index == -1)
     {
-        add_issue(LOW, SSHD_CONF_LOC, ar, "SSHD SSH warning banner not configured", "");
+        add_issue(LOW, AUDIT, SSHD_CONF_LOC, ar, "SSHD SSH warning banner not configured", "");
         return;
     }
     if (strstr(v->data[index], " none") != NULL)
-        add_issue(HIGH, SSHD_CONF_LOC, ar, "SSHD NO SSH warning banner", v->data[index]);
+        add_issue(HIGH, AUDIT, SSHD_CONF_LOC, ar, "SSHD NO SSH warning banner", v->data[index]);
 }
 
 /**
@@ -124,7 +124,7 @@ static void host_based_auth_scan(All_Results *ar, vec_str_t *v)
         return;
 
     if (strstr(v->data[index], " yes") != NULL)
-        add_issue(HIGH, SSHD_CONF_LOC, ar, "SSHD HostBasedAuthentication is enabled", v->data[index]);
+        add_issue(HIGH, AUDIT, SSHD_CONF_LOC, ar, "SSHD HostBasedAuthentication is enabled", v->data[index]);
 }
 
 /**
@@ -144,7 +144,7 @@ static void gss_api_auth_scan(All_Results *ar, vec_str_t *v)
         return;
 
     if (strstr(v->data[index], " yes") != NULL)
-        add_issue(LOW, SSHD_CONF_LOC, ar, "SSHD GSSAPIAuthentication is enabled", v->data[index]);
+        add_issue(LOW, AUDIT, SSHD_CONF_LOC, ar, "SSHD GSSAPIAuthentication is enabled", v->data[index]);
 }
 
 /**
@@ -160,13 +160,14 @@ static void permit_root_login_scan(All_Results *ar, vec_str_t *v)
 {
     int index = search_vector(v, "PermitRootLogin");
 
-    if (index == -1){
-        add_issue(MEDIUM, SSHD_CONF_LOC, ar, "SSHD PermitRootLogin is set to prohibit-password", "");
+    if (index == -1)
+    {
+        add_issue(MEDIUM, AUDIT, SSHD_CONF_LOC, ar, "SSHD PermitRootLogin is set to prohibit-password", "");
         return;
     }
 
     if (strstr(v->data[index], " no") != NULL)
-        add_issue(MEDIUM, SSHD_CONF_LOC, ar, "SSHD PermitRootLogin configuration coudld be more secure", v->data[index]);
+        add_issue(MEDIUM, AUDIT, SSHD_CONF_LOC, ar, "SSHD PermitRootLogin configuration coudld be more secure", v->data[index]);
 }
 
 /**
@@ -183,7 +184,7 @@ static void x11_forwarding_scan(All_Results *ar, vec_str_t *v)
         return;
 
     if (strstr(v->data[index], " yes") != NULL)
-        add_issue(MEDIUM, SSHD_CONF_LOC, ar, "SSHD X11Forwarding is enabled", v->data[index]);
+        add_issue(MEDIUM, AUDIT, SSHD_CONF_LOC, ar, "SSHD X11Forwarding is enabled", v->data[index]);
 }
 
 /**

@@ -129,9 +129,8 @@ void lotl_scan(File_Info *fi, All_Results *ar);
  * This scan will check the current for for common weak permissions
  * @param ar This is a struct containing enumy's results
  * @param fi This is the current file that is going to be scanned
- * @param cmdline the runtime arguments for enumy
  */
-void permissions_scan(File_Info *fi, All_Results *ar, Args *cmdline, vec_void_t *users);
+void permissions_scan(File_Info *fi, All_Results *ar, vec_void_t *users);
 
 /* ============================ SYSTEM SCANS ============================== */
 
@@ -176,3 +175,20 @@ vec_void_t *passwd_scan(All_Results *ar);
  * @param users vector containing pointers to Parsed_Passwd_line
  */
 void free_users(vec_void_t *users);
+
+/**
+ * This scan will look check the kerenel version to see if it's out of datae 
+ * if it is out date, then we will report any POC exploits that match the kerenel
+ * version
+ * @param ar This is the enumy results struct
+ */
+void scan_kernel_exploits(All_Results *ar);
+
+/**
+ * This scan will check what security is in place for mounted file systems
+ * Common security practice is to have encrypted mount points for each area
+ * read only mounts and addtional parameters set to prevent an intruder from 
+ * gaining further access
+ * @param ar A structure containing enumy's results
+ */
+void file_system_scan(All_Results *ar);

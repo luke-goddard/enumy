@@ -99,7 +99,7 @@ static void check_uid(Parsed_Passwd_Line *current, All_Results *ar)
     {
         char buf[MAXSIZE * 2];
         snprintf(buf, (MAXSIZE * 2) - 1, "Found an new root user with UID 0: %s", current->username);
-        add_issue(INFO, PasswdLoc, ar, buf, "");
+        add_issue(INFO, CTF, PasswdLoc, ar, buf, "");
     }
 }
 
@@ -114,7 +114,7 @@ static void check_gid(Parsed_Passwd_Line *current, All_Results *ar)
     {
         char buf[MAXSIZE * 2];
         snprintf(buf, (MAXSIZE * 2) - 1, "Found an new root user with GID 0: %s", current->username);
-        add_issue(INFO, PasswdLoc, ar, buf, "");
+        add_issue(INFO, CTF, PasswdLoc, ar, buf, "");
     }
 }
 
@@ -132,12 +132,12 @@ static void check_login_shell(Parsed_Passwd_Line *current, All_Results *ar)
 
     char buf[MAXSIZE * 2];
     snprintf(buf, (MAXSIZE * 2) - 1, "Found an new user that can be logged into: %s", current->username);
-    add_issue(INFO, PasswdLoc, ar, buf, "");
+    add_issue(INFO, CTF, PasswdLoc, ar, buf, "");
 
     /* Check if the file exsts */
     if (access(current->home, F_OK) == -1)
     {
-        add_issue(HIGH, current->shell, ar, "Found a new user that can be logged into a shell that does not exist", "");
+        add_issue(HIGH, CTF, current->shell, ar, "Found a new user that can be logged into a shell that does not exist", "");
         return;
     }
 
@@ -159,7 +159,7 @@ static void check_login_shell(Parsed_Passwd_Line *current, All_Results *ar)
 
     /* Test if the login shell is writable */
     if (stat_buf->st_mode & S_IWOTH)
-        add_issue(HIGH, current->shell, ar, "Found a that's login shell is writable", "");
+        add_issue(HIGH, CTF, current->shell, ar, "Found a that's login shell is writable", "");
 
     free(stat_buf);
     return;
@@ -173,7 +173,7 @@ static void check_login_shell(Parsed_Passwd_Line *current, All_Results *ar)
 static void check_home_exists(Parsed_Passwd_Line *current, All_Results *ar)
 {
     if (access(current->home, F_OK) == -1)
-        add_issue(HIGH, current->home, ar, "Found a home directory that does not exist, but is attached to an existing user", "");
+        add_issue(HIGH, CTF, current->home, ar, "Found a home directory that does not exist, but is attached to an existing user", "");
 }
 
 /**
@@ -184,7 +184,7 @@ static void check_home_exists(Parsed_Passwd_Line *current, All_Results *ar)
 static void check_password_hashes(Parsed_Passwd_Line *current, All_Results *ar)
 {
     if (strcmp("x", current->password) != 0)
-        add_issue(HIGH, PasswdLoc, ar, "Found password hashes in /etc/passwd", "");
+        add_issue(HIGH, CTF, PasswdLoc, ar, "Found password hashes in /etc/passwd", "");
 }
 
 /* ============================ PARSING FUNCTIONS  ============================== */
@@ -200,7 +200,7 @@ static vec_void_t *parse_etc_passwd(All_Results *ar)
     FILE *fp;
 
     /* Allocate memory for the vector */
-    vec_void_t *passwd_vec = malloc(sizeof(passwd_vec));
+    vec_void_t *passwd_vec = malloc(sizeof(vec_void_t));
     if (!passwd_vec)
     {
         log_fatal_errno("Failed to allocate memory for the passwd vector", errno);
@@ -215,7 +215,9 @@ static vec_void_t *parse_etc_passwd(All_Results *ar)
     if (!fp)
     {
         log_error_errno_loc(ar, "Failed to open passwd file", PasswdLoc, errno);
-        goto FAIL;
+        vec_deinit(passwd_vec);
+        free(passwd_vec);
+        return NULL;
     }
 
     /* Loop through each line */
@@ -239,9 +241,6 @@ static vec_void_t *parse_etc_passwd(All_Results *ar)
 
     fclose(fp);
     return passwd_vec;
-
-FAIL:
-    return NULL;
 }
 
 /**

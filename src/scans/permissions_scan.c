@@ -28,7 +28,7 @@
 
 /* ============================ PROTOTYPES ============================== */
 
-void permissions_scan(File_Info *fi, All_Results *ar, Args *cmdline, vec_void_t *users);
+void permissions_scan(File_Info *fi, All_Results *ar, vec_void_t *users);
 
 static void check_global_write(All_Results *ar, File_Info *fi);
 static void get_first_parent_dir(char *file_loc, char *buf);
@@ -45,11 +45,8 @@ static bool check_uneven_permission_sets(bool r_high, bool w_high, bool x_high, 
  * @param fi This is the current file that is going to be scanned
  * @param users This is a struct containg the user data
  */
-void permissions_scan(File_Info *fi, All_Results *ar, Args *cmdline, vec_void_t *users)
+void permissions_scan(File_Info *fi, All_Results *ar, vec_void_t *users)
 {
-    if (cmdline->enabled_full_scans != true)
-        return;
-
     check_global_write(ar, fi);
     check_no_owner(ar, fi, users);
     check_uneven_permissions(fi, ar);
@@ -71,23 +68,27 @@ static void check_global_write(All_Results *ar, File_Info *fi)
     if (get_first_dir_that_protects_file(fi->location, parent_buf, ar))
     {
         /* The directory is protected */
-        snprintf(issue_buf, (sizeof(issue_buf) - 1), "Found a protected world writable file in: %s", parent_buf);
-        struct stat stats;
-        if ((stat(parent_buf, &stats) != 0))
-        {
-            log_error_errno_loc(ar, "Failed to stat directory", parent_buf, errno);
-            add_issue(LOW, fi->location, ar, issue_buf, "ENUMY failed to stat the parent directory");
-            return;
-        }
-        struct passwd *data = getpwuid(stats.st_uid);
-        if (data == NULL)
-        {
-            log_error_errno_loc(ar, "Failed to stat directory", parent_buf, errno);
-            add_issue(LOW, fi->location, ar, issue_buf, "ENUMY failed to got the owner of the directory");
-            return;
-        }
 
-        add_issue(LOW, fi->location, ar, issue_buf, data->pw_name);
+        /* TODO see */
+        /* https://github.com/luke-goddard/enumy/issues/19 */
+
+        // snprintf(issue_buf, (sizeof(issue_buf) - 1), "Found a protected world writable file in: %s", parent_buf);
+        // struct stat stats;
+        // if ((stat(parent_buf, &stats) != 0))
+        // {
+        //     log_error_errno_loc(ar, "Failed to stat directory", parent_buf, errno);
+        //     printf("%i -> %i -> %s -> %i -> %s\n", LOW, AUDIT, fi->location, ar == NULL, issue_buf);
+        //     add_issue(LOW, AUDIT, fi->location, ar, issue_buf, "ENUMY failed to stat the parent directory");
+        //     return;
+        // }
+        // struct passwd *data = getpwuid(stats.st_uid);
+        // if (data == NULL)
+        // {
+        //     log_error_errno_loc(ar, "Failed to stat directory", parent_buf, errno);
+        //     add_issue(LOW, AUDIT, fi->location, ar, issue_buf, "ENUMY failed to got the owner of the directory");
+        //     return;
+        // }
+        add_issue(LOW, AUDIT, fi->location, ar, issue_buf, "");
         return;
     }
 
@@ -95,7 +96,7 @@ static void check_global_write(All_Results *ar, File_Info *fi)
     memset(parent_buf, '\0', sizeof(parent_buf));
     get_first_parent_dir(fi->location, parent_buf);
     snprintf(issue_buf, (sizeof(issue_buf) - 1), "Found an unprotected world writable file in: %s", parent_buf);
-    add_issue(HIGH, fi->location, ar, issue_buf, "");
+    add_issue(HIGH, AUDIT, fi->location, ar, issue_buf, "");
 }
 
 /**
@@ -110,13 +111,11 @@ static void check_no_owner(All_Results *ar, File_Info *fi, vec_void_t *users)
     {
         Parsed_Passwd_Line *current = users->data[i];
         if (current->uid == fi->stat->st_uid)
-        {
             return;
-        }
     }
     char issue_buf[MAXSIZE + 50] = {'\0'};
     snprintf(issue_buf, (sizeof(issue_buf) - 1), "Found a file with nonexistant GID: %d", fi->stat->st_gid);
-    add_issue(MEDIUM, fi->location, ar, issue_buf, "");
+    add_issue(MEDIUM, AUDIT, fi->location, ar, issue_buf, "");
 }
 
 /**
@@ -202,15 +201,15 @@ static void check_uneven_permissions(File_Info *fi, All_Results *ar)
 
     /* OWNER < GROUP */
     if (check_uneven_permission_sets(owner_read, owner_write, owner_execute, group_read, group_write, group_execute))
-        add_issue(MEDIUM, fi->location, ar, "Group permissions are higher than Owner permissions", "");
+        add_issue(MEDIUM, CTF, fi->location, ar, "Group permissions are higher than Owner permissions", "");
 
     /* OWNER < OTHER */
     if (check_uneven_permission_sets(owner_read, owner_write, owner_execute, other_read, other_write, other_execute))
-        add_issue(MEDIUM, fi->location, ar, "Other permissions are higher than Owner permissions", "");
+        add_issue(MEDIUM, CTF, fi->location, ar, "Other permissions are higher than Owner permissions", "");
 
     /* GROUP < OTHER */
     if (check_uneven_permission_sets(group_read, group_write, group_execute, other_read, other_write, other_execute))
-        add_issue(MEDIUM, fi->location, ar, "Other permissions are higher than Group permissions", "");
+        add_issue(MEDIUM, CTF, fi->location, ar, "Other permissions are higher than Group permissions", "");
 }
 
 /**

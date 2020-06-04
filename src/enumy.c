@@ -25,6 +25,7 @@
 
 bool Debug = false;
 bool DebugExtra = false;
+bool AuditModeEnabled = false;
 
 /* ============================ PROTOTYPES ============================== */
 
@@ -61,7 +62,7 @@ int main(int argc, char *argv[])
 
     All_Results *all_results = initilize_total_results();
 
-    while ((opt = getopt(argc, argv, "sd:fhno:i:w:t:p:g:")) != -1)
+    while ((opt = getopt(argc, argv, "ad:fhno:i:w:t:p:g:")) != -1)
     {
         switch (opt)
         {
@@ -69,6 +70,11 @@ int main(int argc, char *argv[])
         case 'h':
             banner();
             help();
+            break;
+
+        /* Log issues to screen that would not help in a CTF */
+        case 'a':
+            AuditModeEnabled = true;
             break;
 
         /* Enable full scan */
@@ -132,11 +138,6 @@ int main(int argc, char *argv[])
             }
             break;
 
-        /* Enabled missing shared object scan */
-        case 's':
-            args->enabled_missing_so = true;
-            break;
-
         default:
             banner();
             help();
@@ -195,17 +196,23 @@ static void help()
     puts("  -w <loc>     Only WALK files in this directory (usefull for devlopment)");
     puts("");
     puts(" Scan Options");
-    puts("  -f           run FULL scans");
-    puts("  -s           Show missing Shared libaries");
+    puts("  -f           run FULL scans (CPU intensive scan's enabled)");
     puts("  -t <num>     THREADS (default 4)");
     puts("");
     puts(" Printing Options");
-    puts("  -d <1|2>     DEBUG mode (1 low, 2 high)");
+    puts("  -a           Print all security AUDIT issues to screen (probably won't help duing a CTF)");
+    puts("               Issues are ALWAYS logged in result files regardless of this flag being set.");
+    puts("  -d <1|2>     Print DEBUG mode (1 low, 2 high) to enable errors being printed to screen.");
     puts("  -g <H|M|L>   print to screen values GREATER than or equal to high, medium & low");
-    puts("  -p <H|M|L|I> do not PRINT to screen high, medium, low & info issues");
+    puts("  -p <H|M|L|I> do not PRINT to screen high, medium, low & info issues (see below for example)");
+    puts("  -m 1-100     MAXIMUM number of issues with same name to print to screen default (unlimited)");
     puts("");
     puts(" Other Options");
     puts("  -h           Show HELP");
+    puts("");
+    puts(" Example:");
+    puts("   ./enumy");
+    puts("   Run enumy with default configuritaions this will be adequate for CTFs");
     puts("");
     puts(" Example:");
     puts("   ./enumy -i /mnt/smb/ -f -t 12 -g l");

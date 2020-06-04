@@ -32,27 +32,36 @@ Transfer the final enumy binary to the target machine.
 
 ```shell
 $ ./enumy64 -h
-
- ▄█▀─▄▄▄▄▄▄▄─▀█▄  _____
- ▀█████████████▀ |   __|___ _ _ _____ _ _
+ ▄█▀─▄▄▄▄▄▄▄─▀█▄  _____                                  
+ ▀█████████████▀ |   __|___ _ _ _____ _ _ 
      █▄███▄█     |   __|   | | |     | | |
       █████      |_____|_|_|___|_|_|_|_  |
       █▀█▀█                          |___|
 
+ https://github.com/luke-goddard/enumy
 
-------------------------------------------
+ Enumy - Used to enumerate the target the target environment & look for
+ common security vulnerabilities and hostspots
+ ----------------------------------------------------------------------
 
-Enumy - Used to enumerate the target environment and look for common
-security vulnerabilities and hostspots
+ Output
+  -o <loc>     OUTPUT results to location
 
- -o <loc>     Save results to location
- -i <loc>     Ignore files in this directory (usefull for network shares)
- -w <loc>     Only walk files in this directory (usefull for devlopment)
- -t <num>     Threads (default 4)
- -f           Run full scans
- -s           Show missing shared libaries
- -d           Debug mode
- -h           Show help
+ Walking Filesystem
+  -i <loc>     IGNORE files in this directory (usefull for network shares)
+  -w <loc>     Only WALK files in this directory (usefull for devlopment)
+
+ Scan Options
+  -f           run FULL scans (CPU intensive scan's enabled)
+  -t <num>     THREADS (default 4)
+
+ Printing Options
+  -a           Print all security AUDIT issues to screen (probably won't help duing a CTF)
+               Issues are ALWAYS logged in result files regardless of this flag being set.
+  -d <1|2>     Print DEBUG mode (1 low, 2 high) to enable error being printed to screen.
+  -g <H|M|L>   print to screen values GREATER than or equal to high, medium & low
+  -p <H|M|L|I> do not PRINT to screen high, medium, low & info issues (see below for example)
+  -m 1-100     MAXIMUM number of issues with same name to print to screen default (unlimited)
  ```
 
 ## Compilation
@@ -81,27 +90,31 @@ cd output
 
 Below is the ever growing list of scans that have been implemented.
 
-| Scan Type                                                    | Quick scan         | Full Scan          | Implemented        |
-| ------------------------------------------------------------ | ------------------ | ------------------ | ------------------ |
-| [SUID/GUID Scan](#suid-guid-scan)                            | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: |
-| [File Capabilities Scan](#file-capabilities-scan)            | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: |
-| [Intresting Files Scan](#intresting-files-scan)              | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: |
-| [Coredump Scan](#coredump-scan)                              | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: |
-| [Breakout Binaries Scan](#breakout-binary-scan)              | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: |
-| [SSHD Configuration Scan](#ssh-misconfiguration-scan)        | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: |
-| [Sysctl Scan](#sysctl-parameter-hardening)                   | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: |
-| [Living Off The Land Scan](#living-off-the-land-scan)        | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: |
-| [Current User Scan](#current-user-scan)                      | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: |
-| [*.so Injection Scan](#dynamic-shared-object-injection-scan) | :x:                | :heavy_check_mark: | :heavy_check_mark: |
-| [Permissions Scan](#permissions-scan)                        | :x:                | :heavy_check_mark: | :heavy_check_mark: |
-| Docker Scan                                                  | :heavy_check_mark: | :heavy_check_mark: | :x:                |
-| Environment Scan                                             | :heavy_check_mark: | :heavy_check_mark: | :x:                |
-| Privilaged Access Scan                                       | :heavy_check_mark: | :heavy_check_mark: | :x:                |
-| Networking Scan                                              | :heavy_check_mark: | :heavy_check_mark: | :x:                |
-| System Info Scan                                             | :heavy_check_mark: | :heavy_check_mark: | :x:                |
-| Version Information Scan                                     | :heavy_check_mark: | :heavy_check_mark: | :x:                |
-| Default Weak Credentials Scan                                | :heavy_check_mark: | :heavy_check_mark: | :x:                |
-| Weak Crypto Scan                                             | :x:                | :heavy_check_mark: | :x:                |
+| Scan Type                                                    | Quick Scan         | Full Scan          | Implemented        | Printed To Screen | Save In Log        |
+| ------------------------------------------------------------ | ------------------ | ------------------ | ------------------ | ----------------- | ------------------ |
+| [Kernel Exploit Surgestor](#kernel-exploit-surgestor)        | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark | :heavy_check_mark: |
+| [SUID/GUID Scan](#suid-guid-scan)                            | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark | :heavy_check_mark: |
+| [File Capabilities Scan](#file-capabilities-scan)            | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: | :x:               | :heavy_check_mark: |
+| [Intresting Files Scan](#intresting-files-scan)              | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark | :heavy_check_mark: |
+| [Coredump Scan](#coredump-scan)                              | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark | :heavy_check_mark: |
+| [Breakout Binaries Scan](#breakout-binary-scan)              | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark | :heavy_check_mark: |
+| [SSHD Configuration Scan](#ssh-misconfiguration-scan)        | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: | :x:               | :heavy_check_mark: |
+| [Sysctl Scan](#sysctl-parameter-hardening)                   | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark | :heavy_check_mark: |
+| [Living Off The Land Scan](#living-off-the-land-scan)        | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark | :heavy_check_mark: |
+| [Current User Scan](#current-user-scan)                      | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark | :heavy_check_mark: |
+| [*.so Injection Scan](#dynamic-shared-object-injection-scan) | :x:                | :heavy_check_mark: | :heavy_check_mark: | :x:               | :heavy_check_mark: |
+| [Permissions Scan](#permissions-scan)                        | :x:                | :heavy_check_mark: | :heavy_check_mark: | :x:               | :heavy_check_mark: |
+| [File System Scan](#file-system-scan)                        | :x:                | :heavy_check_mark: | :heavy_check_mark: | :x:               | :heavy_check_mark: |
+| Docker Scan                                                  | :heavy_check_mark: | :heavy_check_mark: | :x:                |                   | :heavy_check_mark: |
+| Environment Scan                                             | :heavy_check_mark: | :heavy_check_mark: | :x:                |                   | :heavy_check_mark: |
+| Privilaged Access Scan                                       | :heavy_check_mark: | :heavy_check_mark: | :x:                |                   | :heavy_check_mark: |
+| Networking Scan                                              | :heavy_check_mark: | :heavy_check_mark: | :x:                |                   | :heavy_check_mark: |
+| System Info Scan                                             | :heavy_check_mark: | :heavy_check_mark: | :x:                |                   | :heavy_check_mark: |
+| Version Information Scan                                     | :heavy_check_mark: | :heavy_check_mark: | :x:                |                   | :heavy_check_mark: |
+| Default Weak Credentials Scan                                | :heavy_check_mark: | :heavy_check_mark: | :x:                |                   | :heavy_check_mark: |
+| Weak Crypto Scan                                             | :x:                | :heavy_check_mark: | :x:                |                   | :heavy_check_mark: |
+
+Note to print results marked as :x:, enable audit mode with the `-a` flag.
 
 ## How To Contribute
 
@@ -110,6 +123,10 @@ Below is the ever growing list of scans that have been implemented.
 - All contributions are welcome
 
 ### Scan types
+
+#### Kernel Exploit Surgestor
+
+This scan will check the kernel versions to see if it matches any kernel versions with known exploits.
 
 #### SUID GUID Scan
 
@@ -154,3 +171,7 @@ The current user scan just parses /etc/passwd. With this information we find roo
 #### Permisionss Scan
 
 This scan is going to find file that are globaly writable files, uneven permissions and unowned files. See [here](http://infosecisland.com/blogview/8494-Keeping-Linux-File-Systems-Clean-and-Secure.html) for inspiration of the scan.
+
+#### File System Scan
+
+This scan would be useful for people trying to harden their Linux machine. It will highlight issues such as unencrypted drives and insecure mounting configurations.

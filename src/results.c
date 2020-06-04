@@ -36,7 +36,7 @@
 
 All_Results *initilize_total_results();
 
-void add_issue(int severity, char *location, All_Results *ar, char *name, char *other);
+void add_issue(int severity, int mode, char *location, All_Results *ar, char *name, char *other);
 
 bool get_all_issues_with_id(Result *head, vec_void_t *v, unsigned long id, int linked_list_len);
 
@@ -199,6 +199,8 @@ All_Results *initilize_total_results()
     all_results->low_tot = 0;
     all_results->info_tot = 0;
 
+    all_results->issues_not_logged_to_screen = 0;
+
     /* Setup high linked list */
     all_results->high->issue_id = FIRST_ID;
     all_results->high->next = NULL;
@@ -285,12 +287,13 @@ void free_total_results(All_Results *ar)
 /**
  * Wrapper function to add an issue
  * @param severity This is either HIGH, MEDIUM, LOW, INFO
+ * @param mode This is either CTF | AUDIT 
  * @param location This is the location of the issue 
  * @param ar This is the structure containing all of the issues
  * @param name This is the name of the issue
  * @param other This is any additional information to report, can be NULL 
  */
-void add_issue(int severity, char *location, All_Results *ar, char *name, char *other)
+void add_issue(int severity, int mode, char *location, All_Results *ar, char *name, char *other)
 {
     struct Result *new_result = (struct Result *)malloc(sizeof(struct Result));
 
@@ -307,7 +310,8 @@ void add_issue(int severity, char *location, All_Results *ar, char *name, char *
     new_result->location[0] = '\0';
     new_result->next = NULL;
     new_result->previous = NULL;
-    new_result->no_ls = NULL;
+
+    new_result->no_ls = strcmp(location, "") == 0 ? true : false;
 
     /* Set ID */
     new_result->issue_id = hash(name);
@@ -317,8 +321,17 @@ void add_issue(int severity, char *location, All_Results *ar, char *name, char *
     strncpy(new_result->location, location, MAXSIZE - 1);
     strncpy(new_result->other_info, other, MAXSIZE - 1);
 
+    /* Only print to screen issues marked as CTF, or if audit mode is enabled */
+    if ((mode == CTF) || (AuditModeEnabled))
+        log_issue_to_screen(new_result, severity);
+    else
+    {
+        pthread_mutex_lock(&ar->mutex);
+        ar->issues_not_logged_to_screen++;
+        pthread_mutex_unlock(&ar->mutex);
+    }
+
     /* Insert the issue into the linked list */
-    log_issue_to_screen(new_result, severity);
     add_new_issue(new_result, ar, severity);
     return;
 
@@ -460,7 +473,10 @@ static void log_issue_to_screen(Result *new_result, int severity)
         pclose(fp);
     }
     else
-        ls_result[0] = '\0';
+    {
+        ls_result[0] = '\n';
+        ls_result[1] = '\0';
+    }
 
     printf("Severity: %s%-7s%s Name: %-80s",
            color_code, category, COLOR_RESET,

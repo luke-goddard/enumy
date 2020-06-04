@@ -235,7 +235,7 @@ static int test_missing_shared_libaries(Lib_Info *lib_info, File_Info *fi, All_R
         {
             char name[MAXSIZE + 100];
             snprintf(name, MAXSIZE, "Missing shared libary %s", lib_info->dt_needed[i].tag_value);
-            add_issue(INFO, fi->location, ar, name, "");
+            add_issue(INFO, AUDIT, fi->location, ar, name, "");
         }
     }
 
@@ -350,7 +350,7 @@ static bool search_dyn_path(char *search_for, Tag_Array *tag, char *origin, bool
                 {
                     /* SUID binary with $ORIGIN is not good */
                     if (fi != NULL && has_suid(fi))
-                        add_issue(HIGH, fi->location, ar, suid_issue_name, search_for);
+                        add_issue(HIGH, CTF, fi->location, ar, suid_issue_name, search_for);
 
                     /* Check to see if any missing shared objects */
                     if (mode == MISSING && search_shared_lib_in_dir(search_for, origin))
@@ -358,7 +358,7 @@ static bool search_dyn_path(char *search_for, Tag_Array *tag, char *origin, bool
 
                     /* Missing shared objects could be placed in $ORIGIN */
                     if (fi != NULL && mode == INJECT && is_folder_writable(search_location))
-                        add_issue(HIGH, fi->location, ar, shared_issue_name, search_for);
+                        add_issue(HIGH, CTF, fi->location, ar, shared_issue_name, search_for);
                 }
                 else
                 {
@@ -367,7 +367,7 @@ static bool search_dyn_path(char *search_for, Tag_Array *tag, char *origin, bool
 
                     /* Can we inject any malicious shared objects */
                     if (mode == INJECT && is_folder_writable(search_location))
-                        add_issue(HIGH, fi->location, ar, shared_issue_name, search_for);
+                        add_issue(HIGH, CTF, fi->location, ar, shared_issue_name, search_for);
                 }
                 search_location[buf_copy_loc] = '\0';
                 if (!inloop)

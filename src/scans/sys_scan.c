@@ -23,6 +23,9 @@ void sys_scan(All_Results *ar);
 static bool check_location_exists(char *location);
 static int read_proc_int(char *location);
 
+static void check_suid_dumpable(All_Results *ar);
+static void check_core_uses_pid(All_Results *ar);
+static void check_ctrl_alt_delete(All_Results *ar);
 static void check_kptr_restrict(All_Results *ar);
 static void check_namespaces(All_Results *ar);
 static void check_ptrace_scope(All_Results *ar);
@@ -54,6 +57,9 @@ static void add_medium_issue(All_Results *ar, char *loc, char *issue_name);
  */
 void sys_scan(All_Results *ar)
 {
+    check_suid_dumpable(ar);
+    check_core_uses_pid(ar);
+    check_ctrl_alt_delete(ar);
     check_kptr_restrict(ar);
     check_namespaces(ar);
     check_ptrace_scope(ar);
@@ -76,16 +82,61 @@ void sys_scan(All_Results *ar)
 /* ============================ STATIC FUNCTIONS ============================== */
 
 /**
+ * /proc/sys/kernel/fs/suid_dumpable
+ *0. (default) - traditional behaviour. Any process which has changed privilege levels or is execute only will not be dumped.
+ *1. (debug) - all processes dump core when possible. The core dump is owned by the current user and no security is applied.
+ *             This is intended for system debugging situations only. Ptrace is unchecked. This is insecure as it allows regular
+ *             users to examine the memory contents of privileged processes.
+ *2. (suidsafe) - any binary which normally would not be dumped is dumped anyway, but only if the “core_pattern” kernel sysctl
+                  is set to either a pipe handler or a fully qualified path. (For more details on this limitation,
+                  see CVE-2006-2451.) This mode is appropriate when administrators are attempting to debug problems in
+                  a normal environment, and either have a core dump pipe handler that knows to treat privileged core dumps
+                  with care, or specific directory defined for catching core dumps. If a core dump happens without a pipe handler
+                  or fully qualifid path, a message will be emitted to syslog warning about the lack of a correct setting.
+ * @param ar This is the structure containing all the issues enumy has found
+ */
+static void check_suid_dumpable(All_Results *ar)
+{
+    char *loc = "/proc/sys/fs/suid_dumpable";
+    if (check_location_exists(loc) && read_proc_int(loc) != 0)
+        add_medium_issue(ar, loc, "Coredumps on SUID files are enabled");
+}
+
+/**
+ * The default coredump filename is “core”. By setting core_uses_pid to 1, the coredump filename becomes core.PID.
+ * If core_pattern does not include “%p” (default does not) and core_uses_pid is set, then .PID will be appended to the filename.
+ * @param ar This is the structure containing all the issues enumy has found
+ */
+static void check_core_uses_pid(All_Results *ar)
+{
+    char *loc = "/proc/sys/kernel/core_uses_pid";
+    if (check_location_exists(loc) && read_proc_int(loc) != 1)
+        add_medium_issue(ar, loc, "Coredumps files generate save PID");
+}
+
+/**
+ * /proc/sys/kernel/ctrl-alt-del
+ * @param ar This is the structure containing all the issues enumy has found
+ */
+static void check_ctrl_alt_delete(All_Results *ar)
+{
+    char *loc = "/proc/sys/kernel/ctrl-alt-del";
+    if (check_location_exists(loc) && read_proc_int(loc) != 0)
+        add_medium_issue(ar, loc, "Ctrl+Alt+Delete is not sent to init(1)");
+}
+
+/**
  * /proc/sys/kernel/kptr_restrict
  * 0: When kptr_restrict is set to 0 (the default) the address is hashed before printing. (This is the equivalent to %p.)
  * 1: kernel pointers printed using the %pK format specifier will be replaced with 0's unless the user has CAP_SYSLOG 
  *    and effective user and group ids are equal to the real ids
+ * 2: Kernel pointers are always 0 when printed 
  * @param ar This is the structure containing all the issues enumy has found
  */
 static void check_kptr_restrict(All_Results *ar)
 {
     char *loc = "/proc/sys/kernel/kptr_restrict";
-    if (check_location_exists(loc) && read_proc_int(loc) != 1)
+    if (check_location_exists(loc) && read_proc_int(loc) != 2)
         add_medium_issue(ar, loc, "sysctl kptr_restrict disabled");
 }
 
@@ -113,7 +164,7 @@ static void check_ptrace_scope(All_Results *ar)
 {
     char *loc = "/proc/sys/kernel/yama/ptrace_scope";
     if (check_location_exists(loc) && read_proc_int(loc) != 3)
-        add_medium_issue(ar, loc, "sysctl ptrace enabled");
+        add_issue(MEDIUM, CTF, loc, ar, "sysctl ptrace is configured insecurly", "");
 }
 
 /**
@@ -336,7 +387,7 @@ static void check_randomized_va_space(All_Results *ar)
     char *loc = "/proc/sys/kernel/randomize_va_space";
 
     if (check_location_exists(loc) && read_proc_int(loc) != 2)
-        add_medium_issue(ar, loc, "sysctl radomize_va_space (ASLR) is not set to maximum");
+        add_issue(HIGH, CTF, loc, ar, "Syscyl randomize_va_space (ASLR) is not securly configured", "");
 }
 
 static bool check_location_exists(char *location)
@@ -391,5 +442,5 @@ static int read_proc_int(char *location)
  */
 static void add_medium_issue(All_Results *ar, char *loc, char *issue_name)
 {
-    add_issue(MEDIUM, loc, ar, issue_name, "");
+    add_issue(MEDIUM, AUDIT, loc, ar, issue_name, "");
 }

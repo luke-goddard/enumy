@@ -96,14 +96,16 @@ void scan_file_for_issues(Thread_Pool_Args *thread_pool_args)
 
     /* ============================ KICK OFF FILE SCANS ============================== */
 
+    DEBUG_PRINT_EXTRA("Scanning file ->%s\n", thread_pool_args->file_location);
+
     suid_bit_scan(new_file, thread_pool_args->all_results);
     guid_bit_scan(new_file, thread_pool_args->all_results);
     intresting_files_scan(new_file, thread_pool_args->all_results);
     core_dump_scan(new_file, thread_pool_args->all_results);
     lotl_scan(new_file, thread_pool_args->all_results);
+    permissions_scan(new_file, thread_pool_args->all_results, users);
     capabilities_scan(new_file, thread_pool_args->all_results, thread_pool_args->cmdline);
     rpath_scan(new_file, thread_pool_args->all_results, thread_pool_args->cmdline);
-    permissions_scan(new_file, thread_pool_args->all_results, thread_pool_args->cmdline, users);
 
     /* ============================ FINISH FILE SCANS ============================== */
 
@@ -136,8 +138,11 @@ void start_scan(All_Results *all_results, Args *args)
     /* ============================ KICK OFF SYSTEM SCANS ============================== */
 
     current_user_scan();
+    file_system_scan(all_results);
+    scan_kernel_exploits(all_results);
     sys_scan(all_results);
     sshd_conf_scan(all_results);
+
     vec_void_t *users = passwd_scan(all_results);
 
     struct Walk_Args walk_args = {
