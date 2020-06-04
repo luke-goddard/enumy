@@ -29,8 +29,9 @@
 #define LOW 1    /* LOW issue code */
 #define INFO 0   /* INFO issue code */
 
-#define CTF 0   /* Only display issues that would be useful during a CTF */
-#define AUDIT 1 /* Dispaly all issues, even those that would not be useful in a CTF */
+#define NEVER_PRINT 0 /* Dispaly all issues, even those that would not be useful in a CTF */
+#define CTF 2         /* Only display issues that would be useful during a CTF */
+#define AUDIT 3       /* Dispaly all issues, even those that would not be useful in a CTF */
 
 #define COLOR_HIGH "\033[0;31m"   /* RED */
 #define COLOR_MEDIUM "\033[0;33m" /* YELLOW */

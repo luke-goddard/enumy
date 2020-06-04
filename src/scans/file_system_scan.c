@@ -169,7 +169,7 @@ static void check_mount_points_are_seperate(All_Results *ar, vec_void_t *mounts)
     /* Loop through all mount points */
     for (int i = 0; i < mounts->length; i++)
     {
-        Proc_Mount *current_mount = mounts->data[i];
+        Proc_Mount *current_mount = (Proc_Mount *)mounts->data[i];
         if ((strcmp(current_mount->fs_file, "/tmp") == 0) || (strcmp(current_mount->fs_file, "/tmp/") == 0))
             tmp = true;
 
