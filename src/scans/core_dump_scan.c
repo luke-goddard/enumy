@@ -104,5 +104,5 @@ RET:
  */
 static void add_issue_wrapper(File_Info *fi, int severity, All_Results *ar, char *issue_name)
 {
-    add_issue(severity, fi->location, ar, issue_name, "Core dump files are used to debug crashed processes and can contain valuable information");
+    add_issue(severity, CTF, fi->location, ar, issue_name, "Core dump files are used to debug crashed processes and can contain valuable information");
 }

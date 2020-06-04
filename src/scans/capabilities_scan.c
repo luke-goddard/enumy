@@ -186,7 +186,7 @@ static void scan_cap(int issue_serverity, cap_t current_caps, File_Info *fi, All
  */
 static void add_issue_wrapper(int issue_type, File_Info *fi, All_Results *ar, char *issue_name, char *cap_desc)
 {
-    add_issue(issue_type, fi->location, ar, issue_name, cap_desc);
+    add_issue(issue_type, CTF, fi->location, ar, issue_name, cap_desc);
 }
 
 /**

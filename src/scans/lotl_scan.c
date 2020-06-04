@@ -216,32 +216,32 @@ static void search_implementation(int tool_type, File_Info *fi, All_Results *ar)
 static void report_issue(File_Info *fi, All_Results *ar, int type)
 {
     if (type == BUILD_TOOLS)
-        add_issue(MED, fi->location, ar, (char *)BuildToolsIssueDesc, "");
+        add_issue(MED, AUDIT, fi->location, ar, (char *)BuildToolsIssueDesc, "");
 
     else if (type == SHELL)
-        add_issue(LOW, fi->location, ar, (char *)ShellIssueDesc, "");
+        add_issue(LOW, AUDIT, fi->location, ar, (char *)ShellIssueDesc, "");
 
     else if (type == REVERSE_SHELL)
-        add_issue(MED, fi->location, ar, (char *)RevShellIssueDesc, "");
+        add_issue(MED, CTF, fi->location, ar, (char *)RevShellIssueDesc, "");
 
     else if (type == BIND_SHELL)
-        add_issue(MED, fi->location, ar, (char *)BindShellIssueDesc, "");
+        add_issue(MED, CTF, fi->location, ar, (char *)BindShellIssueDesc, "");
 
     else if (type == NON_INTERACTIVE_BIND_SHELL)
-        add_issue(LOW, fi->location, ar, (char *)NonInterShellIssueDesc, "");
+        add_issue(LOW, CTF, fi->location, ar, (char *)NonInterShellIssueDesc, "");
 
     else if (type == FILE_UPLOAD)
-        add_issue(LOW, fi->location, ar, (char *)FileUploadIssueDesc, "");
+        add_issue(LOW, AUDIT, fi->location, ar, (char *)FileUploadIssueDesc, "");
 
     else if (type == FILE_READ)
-        add_issue(HIGH, fi->location, ar, (char *)FileReadIssueDesc, "");
+        add_issue(HIGH, CTF, fi->location, ar, (char *)FileReadIssueDesc, "");
 
     else if (type == FILE_WRITE)
-        add_issue(HIGH, fi->location, ar, (char *)FileWriteIssueDesc, "");
+        add_issue(HIGH, CTF, fi->location, ar, (char *)FileWriteIssueDesc, "");
 
     else if (type == LIB_LOAD)
-        add_issue(HIGH, fi->location, ar, (char *)LibLoadIssueDesc, "");
+        add_issue(HIGH, CTF, fi->location, ar, (char *)LibLoadIssueDesc, "");
 
     else if (type == FILE_DOWNLOAD)
-        add_issue(LOW, fi->location, ar, (char *)FileDownloadIssueDesc, "");
+        add_issue(LOW, AUDIT, fi->location, ar, (char *)FileDownloadIssueDesc, "");
 }

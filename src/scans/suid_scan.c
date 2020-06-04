@@ -65,7 +65,7 @@ int suid_bit_scan(File_Info *fi, All_Results *ar)
     findings++;
 
     /* Abnormal SUID found */
-    add_issue(MEDIUM, fi->location, ar, name, "");
+    add_issue(MEDIUM, CTF, fi->location, ar, name, "");
 
     if (has_suid_and_global_write(fi, ar))
         findings++;
@@ -99,7 +99,7 @@ int guid_bit_scan(File_Info *fi, All_Results *ar)
     findings++;
 
     /* Abnormal GUID found */
-    add_issue(MEDIUM, fi->location, ar, name, "");
+    add_issue(MEDIUM, CTF, fi->location, ar, name, "");
 
     if (has_guid_and_global_write(fi, ar))
         findings++;
@@ -140,7 +140,7 @@ static bool has_suid_and_global_write(File_Info *fi, All_Results *ar)
     if (!has_global_write(fi))
         return false;
 
-    add_issue(HIGH, fi->location, ar, name, "");
+    add_issue(HIGH, CTF, fi->location, ar, name, "");
 
     return true;
 }
@@ -157,7 +157,7 @@ static bool has_suid_and_group_write(File_Info *fi, All_Results *ar)
     if (!has_group_write(fi))
         return false;
 
-    add_issue(HIGH, fi->location, ar, name, "");
+    add_issue(HIGH, CTF, fi->location, ar, name, "");
     return true;
 }
 
@@ -173,7 +173,7 @@ static bool has_guid_and_global_write(File_Info *fi, All_Results *ar)
     if (!has_global_write(fi))
         return false;
 
-    add_issue(HIGH, fi->location, ar, name, "");
+    add_issue(HIGH, CTF, fi->location, ar, name, "");
     return true;
 }
 
@@ -189,6 +189,6 @@ static bool has_guid_and_group_write(File_Info *fi, All_Results *ar)
     if (!has_group_write(fi))
         return false;
 
-    add_issue(HIGH, fi->location, ar, name, "");
+    add_issue(HIGH, CTF, fi->location, ar, name, "");
     return true;
 }

@@ -21,16 +21,16 @@ CFLAGS := -W
 all: $(EXE)
 
 $(EXE): $(OBJ) $(OBJ_SCAN)
-	$(CC) $(LDFLAGS) $^ $(LDLIBS) -o $@ -lpthread $(STATIC) $(ARCH) -g -Wall -Wextra -O3
+	$(CC) $(LDFLAGS) $^ $(LDLIBS) -o $@ -lpthread $(STATIC) $(ARCH) -g -Wall -Wextra -Wl,-rpath='.'
 
 $(EXE_SCAN): $(OBJ_SCAN)
-	$(CC) $(LDFLAGS) $^ $(LDLIBS) -o $@ -lpthread $(STATIC) $(ARCH) -g -Wall -Wextra -O3
+	$(CC) $(LDFLAGS) $^ $(LDLIBS) -o $@ -lpthread $(STATIC) $(ARCH) -g -Wall -Wextra -Wl,-rpath='.'
 	
 $(OBJ_SCAN_DIR)/%.o: $(SCAN_DIR)/%.c | $(OBJ_SCAN_DIR)
-	$(CC) $(CPPFLAGS) $(CFLAGS) -c $< -o $@ -lpthread $(STATIC) $(ARCH) -g -Wall -Wextra -O3
+	$(CC) $(CPPFLAGS) $(CFLAGS) -c $< -o $@ -lpthread $(STATIC) $(ARCH) -g -Wall -Wextra  -Wl,-rpath='.'
 
 $(OBJ_DIR)/%.o: $(SRC_DIR)/%.c | $(OBJ_DIR)
-	$(CC) $(CPPFLAGS) $(CFLAGS) -c $< -o $@ -lpthread $(STATIC) $(ARCH) -g -Wall -Wextra -O3
+	$(CC) $(CPPFLAGS) $(CFLAGS) -c $< -o $@ -lpthread $(STATIC) $(ARCH) -g -Wall -Wextra  -Wl,-rpath='.'
 
 $(OBJ_DIR):
 	mkdir $@

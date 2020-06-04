@@ -24,6 +24,14 @@
 
 /* ============================ DEFINES ============================== */
 
+#define HIGH 3   /* HIGH issue code */
+#define MEDIUM 2 /* MEDIUM issue code */
+#define LOW 1    /* LOW issue code */
+#define INFO 0   /* INFO issue code */
+
+#define CTF 0   /* Only display issues that would be useful during a CTF */
+#define AUDIT 1 /* Dispaly all issues, even those that would not be useful in a CTF */
+
 #define COLOR_HIGH "\033[0;31m"   /* RED */
 #define COLOR_MEDIUM "\033[0;33m" /* YELLOW */
 #define COLOR_LOW "\033[0;36m"    /* BLUE */
@@ -32,11 +40,6 @@
 #define COLOR_ULINE "\033[0;4m"   /* Underlines the font */
 #define COLOR_DIM "\033[0;2m"     /* Dim colour code */
 #define COLOR_RESET "\033[0;m"    /* Resets the above attributes */
-
-#define HIGH 3   /* HIGH issue code */
-#define MEDIUM 2 /* MEDIUM issue code */
-#define LOW 1    /* LOW issue code */
-#define INFO 0   /* INFO issue code */
 
 #define NOT_FOUND 999999 /* Used to signify that the result is not found */
 #define FIRST_ID 1       /* Used to initilize the linked lists */
@@ -81,8 +84,14 @@ typedef struct All_Results
     vec_str_t *errors;   /* We can record errors for the reporter to log */
     vec_str_t *warnings; /* We can record warnings for the reporter to log */
 
+    int issues_not_logged_to_screen; /* Number of issues in the struct that were not printed to stdout */
+
     pthread_mutex_t mutex; /* Makes the structure thread safe */
 } All_Results;
+
+/* ============================ GLOBAL VARIABLES ============================== */
+
+extern bool AuditModeEnabled; /* Display all issues to screen, even those that would not be useful in a CTF */
 
 /* ============================ PROTOTYPES ============================== */
 
@@ -124,7 +133,7 @@ bool get_all_issues_with_id(Result *head, vec_void_t *v, unsigned long id, int l
  * @param name This is the name of the issue
  * @param other This is any additional information to report, can be NULL 
  */
-void add_issue(int severity, char *location, All_Results *ar, char *name, char *other);
+void add_issue(int severity, int mode, char *location, All_Results *ar, char *name, char *other);
 
 /* ============================ PRINT FUNCTIONS ======================== */
 

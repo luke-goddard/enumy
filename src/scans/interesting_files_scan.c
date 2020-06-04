@@ -90,13 +90,26 @@ static int extension_checker(File_Info *fi, All_Results *ar)
     switch (fi->extension[0])
     {
     case 'b':
-        if ((strcmp(fi->extension, "bk") == 0) || (strcmp(fi->extension, "bak") == 0))
-            add_issue(INFO, fi->location, ar, "Found possible backup file", "Worth checking if there is anything sensative inside");
+        if ((strcmp(fi->extension, "bk") == 0) || (strcmp(fi->extension, "bak") == 0) || strcmp(fi->extension, "old") == 0)
+            add_issue(INFO, AUDIT, fi->location, ar, "Found possible backup file", "Worth checking if there is anything sensative inside");
         break;
+    case 'o':
+        if ((strcmp(fi->extension, "ovpn") == 0))
+        {
+            if (has_global_read(fi))
+                add_issue(HIGH, CTF, fi->location, ar, "Found readable VPN credentials", "");
+            else
+                add_issue(INFO, CTF, fi->location, ar, "Found non readable VPN credentials", "");
+        }
+        break;
+    case 'l':
+        if ((strcmp(fi->extension, "log") == 0) && has_global_write(fi))
+            add_issue(MEDIUM, AUDIT, fi->location, ar, "Found a writeable log file", "");
+        break;
+
     case 's':
         if (strcmp(fi->extension, "so") == 0)
             findings += check_for_writable_shared_object(fi, ar);
-
         break;
     }
     return findings;
@@ -157,13 +170,13 @@ static int file_name_checker(File_Info *fi, All_Results *ar)
         break;
 
     case 'p':
-        if ((strcmp(fi->name, "shadow.bak") == 0) || strcmp(fi->name, "shadow-") == 0)
-            add_issue(INFO, fi->location, ar, "Found backup /etc/passwd file", "");
+        if ((strcmp(fi->name, "passwd.bak") == 0) || strcmp(fi->name, "passwd-") == 0)
+            add_issue(INFO, CTF, fi->location, ar, "Found backup /etc/passwd file", "");
         break;
 
     case 's':
         if ((strcmp(fi->name, "shadow.bak") == 0) || strcmp(fi->name, "shadow-") == 0)
-            add_issue(MEDIUM, fi->location, ar, "Found backup /etc/shadow file", "");
+            add_issue(MEDIUM, CTF, fi->location, ar, "Found backup /etc/shadow file", "");
         break;
     }
     return findings;
@@ -190,7 +203,7 @@ static bool check_for_encryption_key(File_Info *fi, All_Results *ar)
     if (access(fi->location, R_OK) != 0)
     {
     NONREADABLE:
-        add_issue(INFO, fi->location, ar, "None readable potential encryption key", "Private keys should never be readable");
+        add_issue(INFO, CTF, fi->location, ar, "None readable potential encryption key", "Private keys should never be readable");
         return true;
     }
 
@@ -209,7 +222,7 @@ static bool check_for_encryption_key(File_Info *fi, All_Results *ar)
         goto NONREADABLE;
 
     /* Raise the issue */
-    add_issue(HIGH, fi->location, ar, "Low entropy file that could be a private key", "");
+    add_issue(HIGH, CTF, fi->location, ar, "Low entropy file that could be a private key", "");
     return true;
 }
 
@@ -322,7 +335,7 @@ static int search_conf_for_pass(File_Info *fi, All_Results *ar)
             (strcasestr(line, "privatekey") != NULL) ||
             (strcasestr(line, "private-key") != NULL))
         {
-            add_issue(INFO, fi->location, ar, "Config file could contain passwords", "This scans searches for key words and produces many false positives");
+            add_issue(INFO, CTF, fi->location, ar, "Config file could contain passwords", "This scans searches for key words and produces many false positives");
             findings++;
         }
     }
@@ -341,7 +354,7 @@ static int check_for_writable_shared_object(File_Info *fi, All_Results *ar)
 {
     if (has_global_write(fi))
     {
-        add_issue(HIGH, fi->location, ar, "World Writable shared object found", "Is there any files on the system that use these shared objects?");
+        add_issue(HIGH, CTF, fi->location, ar, "World Writable shared object found", "Is there any files on the system that use these shared objects?");
         return 1;
     }
     return 0;
