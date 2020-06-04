@@ -26,9 +26,19 @@
 #include <grp.h>
 #include <sys/types.h>
 
+/* ============================ CONST ============================== */
+
+const char *FilesThatShouldNotBeWritable[] = {
+    "/etc/passwd", "/etc/shadow", "/etc/fstab", "/etc/crypttab", "/etc/groups", "/etc/sudoers",
+    "/etc/hosts", "/etc/host.conf", "/etc/hostname", "/etc/pacman.conf", "/etc/resolv.conf", "/etc/profile",
+    "/etc/environment", "/etc/bashrc"};
+
+const char *FilesThatShouldNotBeReadable[] = {"/etc/shadow", "/etc/crypttab", "/etc/sudoers"};
+
 /* ============================ PROTOTYPES ============================== */
 
 void permissions_scan(File_Info *fi, All_Results *ar, vec_void_t *users);
+void writable_readable_config_files_scan(All_Results *ar);
 
 static void check_global_write(All_Results *ar, File_Info *fi);
 static void get_first_parent_dir(char *file_loc, char *buf);
@@ -36,6 +46,8 @@ static bool get_first_dir_that_protects_file(char *file_location, char *parent_d
 static void check_no_owner(All_Results *ar, File_Info *fi, vec_void_t *users);
 static void check_uneven_permissions(File_Info *fi, All_Results *ar);
 static bool check_uneven_permission_sets(bool r_high, bool w_high, bool x_high, bool r_low, bool w_low, bool x_low);
+static void check_writable_sen_file(All_Results *ar, char *location);
+static void check_readable_sen_file(All_Results *ar, char *location);
 
 /* ============================ FUNCTIONS  ============================== */
 
@@ -50,6 +62,23 @@ void permissions_scan(File_Info *fi, All_Results *ar, vec_void_t *users)
     check_global_write(ar, fi);
     check_no_owner(ar, fi, users);
     check_uneven_permissions(fi, ar);
+}
+
+/** 
+ * This scan will check to see if any REALLY important files are 
+ * world writable or world readable
+ * @param ar This is a struct containing all of enumy's results
+ */
+void writable_readable_config_files_scan(All_Results *ar)
+{
+    int size_writable = sizeof(FilesThatShouldNotBeWritable) / sizeof(FilesThatShouldNotBeWritable[0]);
+    int size_readable = sizeof(FilesThatShouldNotBeReadable) / sizeof(FilesThatShouldNotBeReadable[0]);
+
+    for (int i = 0; i < size_writable; i++)
+        check_writable_sen_file(ar, (char *)FilesThatShouldNotBeWritable[i]);
+
+    for (int i = 0; i < size_readable; i++)
+        check_readable_sen_file(ar, (char *)FilesThatShouldNotBeReadable[i]);
 }
 
 /**
@@ -69,7 +98,7 @@ static void check_global_write(All_Results *ar, File_Info *fi)
     {
         /* The directory is protected */
 
-        /* TODO see */
+        /* TODO HELP WANTED see */
         /* https://github.com/luke-goddard/enumy/issues/19 */
 
         // snprintf(issue_buf, (sizeof(issue_buf) - 1), "Found a protected world writable file in: %s", parent_buf);
@@ -228,4 +257,66 @@ static bool check_uneven_permission_sets(bool r_high, bool w_high, bool x_high, 
         (!r_high && r_low) ||
         (!w_high && w_low) ||
         (!x_high && x_low));
+}
+
+/**
+ * This function will check the permissions on the at location 
+ * and see if the current process has the ablity to write to that
+ * file
+ * @param ar all results 
+ * @param location location of the file to test
+ */
+static void check_writable_sen_file(All_Results *ar, char *location)
+{
+    struct stat stats;
+
+    /* Check location exists */
+    if (!access(location, F_OK))
+        return;
+
+    /* Stat location */
+    if (stat(location, &stats) != 0)
+    {
+        log_error_errno_loc(ar, "Failed to stat file", location, errno);
+        return;
+    }
+
+    /* Check for global write */
+    if (stats.st_mode & S_IWOTH)
+        add_issue(HIGH, CTF, location, ar, "Important file is world writeable", "");
+
+    /* Check if current non root users can write to fstab */
+    else if (access(location, W_OK) && (getuid() != 0))
+        add_issue(HIGH, CTF, location, ar, "Current user can write to important file", "");
+}
+
+/**
+ * This function will check the permissions on the at location 
+ * and see if the current process has the ablity to read to that
+ * file
+ * @param ar all results 
+ * @param location location of the file to test
+ */
+static void check_readable_sen_file(All_Results *ar, char *location)
+{
+    struct stat fstab_stat;
+
+    /* Checklocationfstab exists */
+    if (!access(location, F_OK))
+        return;
+
+    /* Stat location */
+    if (stat(location, &fstab_stat) != 0)
+    {
+        log_error_errno_loc(ar, "Failed to stat file", location, errno);
+        return;
+    }
+
+    /* Check for global write */
+    if (fstab_stat.st_mode & S_IROTH)
+        add_issue(HIGH, CTF, location, ar, "Important file is readable writeable", "");
+
+    /* Check if current non root users can write to fstab */
+    else if (access(location, R_OK) && (getuid() != 0))
+        add_issue(HIGH, CTF, location, ar, "Current user can read from very important file", "");
 }

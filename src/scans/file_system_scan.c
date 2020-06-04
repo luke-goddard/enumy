@@ -29,7 +29,8 @@
 
 /* ============================ CONSTS  ============================== */
 
-const char *PROC_MOUNT_LOC = "/proc/mounts";
+const char *ProcMountLoc = "/proc/mounts";
+const char *FstabLoc = "/proc/mounts";
 
 /* ============================ STRUCTS  ============================== */
 
@@ -81,10 +82,10 @@ static vec_void_t *parse_proc_mounts(All_Results *ar)
     char *dest;
 
     /* Open /proc/mounts */
-    FILE *fp = fopen(PROC_MOUNT_LOC, "r");
+    FILE *fp = fopen(ProcMountLoc, "r");
     if (fp == NULL)
     {
-        log_error_errno_loc(ar, "Failed to open proc mount", (char *)PROC_MOUNT_LOC, errno);
+        log_error_errno_loc(ar, "Failed to open proc mount", (char *)ProcMountLoc, errno);
         return NULL;
     }
 

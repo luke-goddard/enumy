@@ -129,6 +129,7 @@ bool get_all_issues_with_id(Result *head, vec_void_t *v, unsigned long id, int l
 /**
  * Wrapper function to add an issue
  * @param severity This is either HIGH, MEDIUM, LOW, INFO
+ * @param mode either CTF or AUDIT 
  * @param location This is the location of the issue 
  * @param ar This is the structure containing all of the issues
  * @param name This is the name of the issue

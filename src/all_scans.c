@@ -142,6 +142,7 @@ void start_scan(All_Results *all_results, Args *args)
     scan_kernel_exploits(all_results);
     sys_scan(all_results);
     sshd_conf_scan(all_results);
+    writable_readable_config_files_scan(all_results);
 
     vec_void_t *users = passwd_scan(all_results);
 
