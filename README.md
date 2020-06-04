@@ -45,7 +45,7 @@ $ ./enumy64 -h
  ----------------------------------------------------------------------
 
  Output
-  -o <loc>     OUTPUT results to location
+  -o <loc>     OUTPUT results to location (default enumy.json)
 
  Walking Filesystem
   -i <loc>     IGNORE files in this directory (usefull for network shares)

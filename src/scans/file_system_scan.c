@@ -65,7 +65,7 @@ void file_system_scan(All_Results *ar)
     vec_void_t *mounts = parse_proc_mounts(ar);
 
     check_mount_points_are_seperate(ar, mounts);
-    check_main_mount_points_are_encrypted(ar, mounts);
+    check_main_mount_points_are_encrypted();
 
     /* Deallocate the memory */
     for (int i = 0; i < mounts->length; i++)

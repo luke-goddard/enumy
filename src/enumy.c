@@ -189,7 +189,7 @@ static void help()
     puts(" ----------------------------------------------------------------------");
     puts("");
     puts(" Output");
-    puts("  -o <loc>     OUTPUT results to location");
+    puts("  -o <loc>     OUTPUT results to location (default enumy.json)");
     puts("");
     puts(" Walking Filesystem");
     puts("  -i <loc>     IGNORE files in this directory (usefull for network shares)");
