@@ -29,7 +29,8 @@
 
 /* ============================ CONSTS  ============================== */
 
-const char *PROC_MOUNT_LOC = "/proc/mounts";
+const char *ProcMountLoc = "/proc/mounts";
+const char *FstabLoc = "/proc/mounts";
 
 /* ============================ STRUCTS  ============================== */
 
@@ -81,10 +82,10 @@ static vec_void_t *parse_proc_mounts(All_Results *ar)
     char *dest;
 
     /* Open /proc/mounts */
-    FILE *fp = fopen(PROC_MOUNT_LOC, "r");
+    FILE *fp = fopen(ProcMountLoc, "r");
     if (fp == NULL)
     {
-        log_error_errno_loc(ar, "Failed to open proc mount", (char *)PROC_MOUNT_LOC, errno);
+        log_error_errno_loc(ar, "Failed to open proc mount", (char *)ProcMountLoc, errno);
         return NULL;
     }
 
@@ -169,7 +170,7 @@ static void check_mount_points_are_seperate(All_Results *ar, vec_void_t *mounts)
     /* Loop through all mount points */
     for (int i = 0; i < mounts->length; i++)
     {
-        Proc_Mount *current_mount = mounts->data[i];
+        Proc_Mount *current_mount = (Proc_Mount *)mounts->data[i];
         if ((strcmp(current_mount->fs_file, "/tmp") == 0) || (strcmp(current_mount->fs_file, "/tmp/") == 0))
             tmp = true;
 

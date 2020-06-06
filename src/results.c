@@ -27,6 +27,10 @@
 #include "vector.h"
 
 #include <errno.h>
+#include <unistd.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <unistd.h>
 
 /* ============================ DEFINES ============================== */
 
@@ -322,7 +326,7 @@ void add_issue(int severity, int mode, char *location, All_Results *ar, char *na
     strncpy(new_result->other_info, other, MAXSIZE - 1);
 
     /* Only print to screen issues marked as CTF, or if audit mode is enabled */
-    if ((mode == CTF) || (AuditModeEnabled))
+    if (((mode == CTF) || (AuditModeEnabled)) && (mode != NEVER_PRINT))
         log_issue_to_screen(new_result, severity);
     else
     {
@@ -429,7 +433,7 @@ void print_heading_oneliner(char *s)
  */
 static void log_issue_to_screen(Result *new_result, int severity)
 {
-    char ls_result[MAXSIZE];
+    char ls_result[MAXSIZE] = {'\0'};
     char *color_code, *category;
 
     if ((severity == HIGH) && ShowHigh)
@@ -453,8 +457,23 @@ static void log_issue_to_screen(Result *new_result, int severity)
         category = "INFO";
     }
     else
-    {
         return;
+
+    /* Check file exists */
+    if (access(new_result->location, F_OK) == -1)
+    {
+        new_result->no_ls = true;
+    }
+
+    struct stat path_stat;
+    lstat(new_result->location, &path_stat);
+    if (S_ISDIR(path_stat.st_mode))
+    {
+        DEBUG_PRINT("%s\n", new_result->location);
+        strncpy(ls_result, new_result->location, sizeof(ls_result) - 2);
+        strncat(ls_result, "\n", sizeof(ls_result) - 1);
+        new_result->no_ls = true;
+        goto PRINT;
     }
 
     if (new_result->no_ls == false)
@@ -473,11 +492,8 @@ static void log_issue_to_screen(Result *new_result, int severity)
         pclose(fp);
     }
     else
-    {
-        ls_result[0] = '\n';
-        ls_result[1] = '\0';
-    }
-
+        strncpy(ls_result, "\n", sizeof(ls_result - 1));
+PRINT:
     printf("Severity: %s%-7s%s Name: %-80s",
            color_code, category, COLOR_RESET,
            new_result->issue_name);

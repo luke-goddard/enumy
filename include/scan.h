@@ -192,3 +192,10 @@ void scan_kernel_exploits(All_Results *ar);
  * @param ar A structure containing enumy's results
  */
 void file_system_scan(All_Results *ar);
+
+/** 
+ * This scan will check to see if any REALLY important files are 
+ * world writable or world readable
+ * @param ar This is a struct containing all of enumy's results
+ */
+void writable_readable_config_files_scan(All_Results *ar);

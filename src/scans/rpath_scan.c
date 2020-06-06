@@ -230,13 +230,9 @@ static int test_missing_shared_libaries(Lib_Info *lib_info, File_Info *fi, All_R
         if (search_for_injectable(lib_info->dt_needed[i].tag_value, lib_info->dt_runpath, origin, fi, ar))
             break;
 
-        /* This shared object is missing */
-        if (cmdline->enabled_missing_so)
-        {
-            char name[MAXSIZE + 100];
-            snprintf(name, MAXSIZE, "Missing shared libary %s", lib_info->dt_needed[i].tag_value);
-            add_issue(INFO, AUDIT, fi->location, ar, name, "");
-        }
+        char name[MAXSIZE + 100];
+        snprintf(name, MAXSIZE, "Missing shared libary %s", lib_info->dt_needed[i].tag_value);
+        add_issue(INFO, NEVER_PRINT, fi->location, ar, name, "");
     }
 
     free(origin);

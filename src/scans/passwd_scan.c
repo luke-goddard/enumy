@@ -173,7 +173,7 @@ static void check_login_shell(Parsed_Passwd_Line *current, All_Results *ar)
 static void check_home_exists(Parsed_Passwd_Line *current, All_Results *ar)
 {
     if (access(current->home, F_OK) == -1)
-        add_issue(HIGH, CTF, current->home, ar, "Found a home directory that does not exist, but is attached to an existing user", "");
+        add_issue(HIGH, CTF, current->home, ar, "Found a home directory that does not exist, but is attached to an existing user", current->username);
 }
 
 /**

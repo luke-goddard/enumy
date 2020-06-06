@@ -129,6 +129,7 @@ static int test_if_encryption_key(File_Info *fi, All_Results *ar)
             (strcmp(fi->extension, EncryptionKeyWords[i]) == 0) ||
             (strcmp(fi->name, EncryptionKeyWords[i]) == 0))
         {
+
             return check_for_encryption_key(fi, ar);
         }
     }
