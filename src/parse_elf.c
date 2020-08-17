@@ -67,51 +67,45 @@ int has_elf_magic_bytes(File_Info *fi)
     // Wrong with it
     // Check the size of the file first
     // Get rid of the endian stuff
-    // Use memcpy
     // Get the architecture from the ELF headers
     /* ============================ TODO ============================== */
-    const int magic_size = 5;
+    const int magic_size = 4;
 
-    unsigned char values[5] = {0x00, 0x00, 0x00, 0x00};
-    unsigned char little_endian[4] = {0x45, 0x7f, 0x46, 0x4c};
-    unsigned char big_endian[4] = {0x7f, 0x45, 0x4c, 0x46};
+    unsigned char values[magic_size + 1] = {0x00, 0x00, 0x00, 0x00};
+    const unsigned char little_endian[magic_size] = {0x45, 0x7f, 0x46, 0x4c};
+    const unsigned char big_endian[magic_size] = {0x7f, 0x45, 0x4c, 0x46};
 
     FILE *fp;
     bool little_found, big_found;
+    size_t bytes_read;
 
-    little_found = big_found = true;
+    little_found = big_found = false;
 
     fp = fopen(fi->location, "rb");
-    if (fp == NULL)
+    if (fp == NULL) {
         return 0;
+    }
 
-    fread(values, 1, magic_size, fp);
+    bytes_read = fread(values, 1, magic_size + 1, fp);
     fclose(fp);
 
-    // TODO USE memcpy
-    for (int i = 0; i < magic_size - 1; i++)
-    {
-        if (little_endian[i] != values[i])
-        {
-            little_found = false;
-            break;
-        }
+    if (magic_size + 1 != bytes_read) {
+        return 0;
     }
 
-    for (int i = 0; i < magic_size - 1; i++)
-    {
-        if (big_endian[i] != values[i])
-        {
-            big_found = false;
-            break;
-        }
+    if (!memcmp(values, little_endian)) {
+        little_found = true;
     }
+    if (!memcmp(values, big_endian)) {
+        big_found = true;
+    }
+
     if (little_found || big_found)
     {
-        if (values[4] == ELFCLASS32)
+        if (values[magic_size] == ELFCLASS32)
             return X86;
 
-        else if (values[4] == ELFCLASS64)
+        if (values[magic_size] == ELFCLASS64)
             return X64;
     }
     return NOT_ELF;
@@ -234,7 +228,6 @@ Tag_Array *search_dynamic_for_value(Elf_File *elf, Tag tag)
 {
     int number_of_elements = 0; /* Total number of tags */
     int number_of_findings = 0; /* Total number of matching tags */
-    int current_findings = 0;
 
     /* Make sure that the Elf_File has been parsed */
     if (elf->dynamic_strings == 0 || elf->dynamic_header == NULL)
@@ -245,15 +238,16 @@ Tag_Array *search_dynamic_for_value(Elf_File *elf, Tag tag)
     /* ============================ TODO ============================== */
 
     /* We search twice so we need two pointers */
-    Elf_Internal_Dyn *entry = elf->dynamic_header->p_offset + elf->address;
-    Elf_Internal_Dyn *entry2 = elf->dynamic_header->p_offset + elf->address;
+    Elf_Internal_Dyn *entry = Elf_Internal_Dyn* (elf->dynamic_header->p_offset + (char*)(elf->address));
+    Elf_Internal_Dyn *entry2 = entry;
+    Elf_Internal_Dyn *entry_end = Elf_Internal_Dyn* (elf->dynamic_header->p_filesz + (char*)(entry));
 
     /* ============================ TODO ============================== */
     /* This function could fail is no DT_NULL is found  (corrupted elf) */
     /* ============================ TODO ============================== */
 
     /* Loop through the dynamic section until we find DT_NULL, this signifies that we've reached the end */
-    for (; (char *)(entry + 2) <= (char *)(elf->dynamic_header->p_offset + elf->address + elf->dynamic_header->p_filesz); entry++)
+    for (; entry + 2 <= entry_end; entry++)
     {
         /* Current tag is equal to the search value */
         if (entry->d_tag == tag)
@@ -286,9 +280,9 @@ Tag_Array *search_dynamic_for_value(Elf_File *elf, Tag tag)
     {
         if (entry2->d_tag == tag)
         {
-            findings[current_findings].tag_value = elf->address + elf->dynamic_strings + entry2->d_un.d_ptr;
-            current_findings++;
+            findings[i].tag_value = elf->address + elf->dynamic_strings + entry2->d_un.d_ptr;
         }
+        // John: Think there should be a: [if (entry2+1 > entry_end){break;}] here, but am not sure.
         entry2++;
     }
     return findings;
@@ -302,8 +296,12 @@ Tag_Array *search_dynamic_for_value(Elf_File *elf, Tag tag)
  */
 void close_elf(Elf_File *elf, File_Info *fi)
 {
-    munmap((void *)elf->address, fi->stat->st_size);
-    free(elf);
+    if (elf) {
+        if (MAP_FAILED != elf->address) {
+            munmap((void *)elf->address, fi->stat->st_size);
+        }
+        free(elf);
+    }
 }
 
 /* ============================ STATIC FUNCTIONS ============================== */
