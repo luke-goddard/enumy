@@ -110,7 +110,8 @@ static void check_global_write(All_Results *ar, File_Info *fi)
         //     add_issue(LOW, AUDIT, fi->location, ar, issue_buf, "ENUMY failed to stat the parent directory");
         //     return;
         // }
-        // struct passwd *data = getpwuid(stats.st_uid);
+        // // John: getpwuid is not re-entrant. Using getpwuid_r should fix this issue.
+        // struct passwd *data = getpwuid_r(stats.st_uid);
         // if (data == NULL)
         // {
         //     log_error_errno_loc(ar, "Failed to stat directory", parent_buf, errno);
