@@ -1,5 +1,5 @@
-/* 
-    This file is used to populate an array of files in the system 
+/*
+    This file is used to populate an array of files in the system
     each file stored in the array will have permissions etc. We can
     use this to find SUID binaries and writeable config files etc
 */
@@ -26,6 +26,7 @@
 /* ============================ PROTOTYPES ============================== */
 
 void walk_file_system(char *entry_location, All_Results *all_results, Args *cmdline, vec_void_t *users);
+unsigned char get_d_type(struct dirent* entry, const char* location);
 
 bool has_extension(File_Info *f, char *extension);
 bool has_global_write(File_Info *f);
@@ -46,15 +47,67 @@ bool is_folder_writable(char *path);
 static void add_file_to_thread_pool(char *file_location, char *file_name, All_Results *all_results, Args *cmdline, vec_void_t *users);
 
 /* ============================ FUNCTIONS ============================== */
+/** Extracts the d_type form file direct structures, even if not provided directly.
+ * This is the case when calling readdir, as :
+ * "The only fields in the dirent structure that are mandated by POSIX.1 are d_name and d_ino.  The other fields are unstandardized, and not present on all systems"
+ * However:
+ * "  Currently, only some filesystems have full support for returning the file type in d_type.
+ *    All applications must properly handle areturn of DT_UNKNOWN. "
+ * In this case lstat is used.
+ *
+ * Note this version uses lstat as is consisten with the d_type entry. A seperate version would be needed for following links.
+ */
+
+unsigned char get_d_type(struct dirent* entry, const char* location) {
+    struct stat statbuf;
+    unsigned char rv = DT_UNKNOWN;
+
+    if (DT_UNKNOWN == entry->d_type){
+        char filepath[MAXSIZE];
+        strncpy(filepath, location, MAXSIZE - 1);
+        strncat(filepath, entry->d_name, MAXSIZE - 1);
+        // The call to lstat here might not be thread safe, if the call is being made on the same file at the same time.
+        // I think there ius no way that this happens at the moment, but am not sure at all.
+        // Could globally lock this or do some sort of filesystem hash to make this more fine-grained etc.
+
+        if(-1 != lstat(entry->d_name, &statbuf))
+        {
+            // Her would be a good place to sanity check that the inode numbers match.
+            if(S_ISLNK(statbuf.st_mode)) {
+                rv = DT_LNK;
+            }
+            else if (S_ISDIR(statbuf.st_mode)) {
+                rv = DT_DIR;
+            }
+            else if (S_ISREG(statbuf.st_mode)) {
+                rv = DT_REG;
+            }
+            // Repeat if wanted for: DT_BLK, DT_CHR, DT_FIFO, DT_SOCK
+            // i.e.:
+            //else if (S_ISCHR(statbuf.st_mode)) {
+            //    rv = DT_CHR;
+            //}
+      } else {
+          rv = DT_UNKNOWN;
+      }
+  } else {
+      // The likely case is that the d_type is set.
+      // Here it can just be read.
+      rv = entry->d_type;
+  }
+
+  return rv;
+}
+
 
 /**
  * Walks the file system, will skip files in ignore directory (cmdline arguments)
- * For each path encountered it will pass the file to a thread pool 
- * The thread pool will perform scans on the file 
- * Note this scan will not walk the proc file system 
- * @param entry_location the root location to walk 
- * @param all_results a pointer to structure containinng all the future enumy findings 
- * @param cmdline a pointer to the run time arguments 
+ * For each path encountered it will pass the file to a thread pool
+ * The thread pool will perform scans on the file
+ * Note this scan will not walk the proc file system
+ * @param entry_location the root location to walk
+ * @param all_results a pointer to structure containinng all the future enumy findings
+ * @param cmdline a pointer to the run time arguments
  * @param users This is the parsed /etc/passwd file
  */
 void walk_file_system(char *entry_location, All_Results *all_results, Args *cmdline, vec_void_t *users)
@@ -75,13 +128,13 @@ void walk_file_system(char *entry_location, All_Results *all_results, Args *cmdl
     {
         if (strcmp(entry->d_name, ".") != 0 && strcmp(entry->d_name, "..") != 0)
         {
-            if (entry->d_type & DT_REG)
+            if (get_d_type(entry, entry_location) & DT_REG)
             {
                 strncpy(file_location, entry_location, sizeof(file_location) - 1);
                 strncat(file_location, entry->d_name, sizeof(file_location) - 1 - strlen(file_location));
                 add_file_to_thread_pool(file_location, entry->d_name, all_results, cmdline, users);
             }
-            else if (entry->d_type & DT_DIR)
+            else if (get_d_type(entry, entry_location) & DT_DIR)
             {
                 strncpy(file_location, entry_location, sizeof(file_location) - 1);
                 strncat(file_location, entry->d_name, sizeof(file_location) - 1 - strlen(file_location));
@@ -107,8 +160,8 @@ void walk_file_system(char *entry_location, All_Results *all_results, Args *cmdl
 /* ============================ has_* FUNCTIONS ============================== */
 
 /**
- * Tests to see if other read is enabled 
- * @param fi this is the current file that's being scanned 
+ * Tests to see if other read is enabled
+ * @param fi this is the current file that's being scanned
  */
 bool has_global_read(File_Info *f)
 {
@@ -116,8 +169,8 @@ bool has_global_read(File_Info *f)
 }
 
 /**
- * Tests to see if other write is enabled 
- * @param fi this is the current file that's being scanned 
+ * Tests to see if other write is enabled
+ * @param fi this is the current file that's being scanned
  */
 bool has_global_write(File_Info *f)
 {
@@ -125,8 +178,8 @@ bool has_global_write(File_Info *f)
 }
 
 /**
- * Tests to see if other execute is enabled 
- * @param fi this is the current file that's being scanned 
+ * Tests to see if other execute is enabled
+ * @param fi this is the current file that's being scanned
  */
 bool has_global_execute(File_Info *f)
 {
@@ -134,8 +187,8 @@ bool has_global_execute(File_Info *f)
 }
 
 /**
- * Tests to see if group execute is enabled 
- * @param fi this is the current file that's being scanned 
+ * Tests to see if group execute is enabled
+ * @param fi this is the current file that's being scanned
  */
 bool has_group_execute(File_Info *f)
 {
@@ -143,8 +196,8 @@ bool has_group_execute(File_Info *f)
 }
 
 /**
- * Tests to see if group write is enabled 
- * @param fi this is the current file that's being scanned 
+ * Tests to see if group write is enabled
+ * @param fi this is the current file that's being scanned
  */
 bool has_group_write(File_Info *f)
 {
@@ -152,8 +205,8 @@ bool has_group_write(File_Info *f)
 }
 
 /**
- * Tests to see if the current file has SUID bit enabled 
- * @param fi this is the current file that's being scanned 
+ * Tests to see if the current file has SUID bit enabled
+ * @param fi this is the current file that's being scanned
  */
 bool has_suid(File_Info *f)
 {
@@ -162,7 +215,7 @@ bool has_suid(File_Info *f)
 
 /**
  * Tests to see if the current file has GUID bit enabled
- * @param fi this is the current file that's being scanned 
+ * @param fi this is the current file that's being scanned
  */
 bool has_guid(File_Info *f)
 {
@@ -171,7 +224,7 @@ bool has_guid(File_Info *f)
 
 /**
  * Tests to see if the current file has a matching extension
- * @param fi this is the current file that's being scanned 
+ * @param fi this is the current file that's being scanned
  * @param extension this is the extension to check against
  */
 bool has_extension(File_Info *f, char *extension)
@@ -180,8 +233,8 @@ bool has_extension(File_Info *f, char *extension)
 }
 
 /**
- * Tests to see if the group or other can execute the file 
- * @param fi this is the current file that's being scanned 
+ * Tests to see if the group or other can execute the file
+ * @param fi this is the current file that's being scanned
  */
 bool has_executable(File_Info *f)
 {
@@ -189,8 +242,8 @@ bool has_executable(File_Info *f)
 }
 
 /**
- * Tests to see if the file is readable by the current process 
- * @param fi this is the current file that's being scanned 
+ * Tests to see if the file is readable by the current process
+ * @param fi this is the current file that's being scanned
  */
 bool can_read(File_Info *fi)
 {
@@ -204,7 +257,7 @@ bool can_read(File_Info *fi)
 * abc.tar.gz would return .gz not .tar.gz
 * The extensions is saved in lowercase
 * @param buffer location to save the file extension
-* @param f_name the files name 
+* @param f_name the files name
 */
 void get_file_extension(char *buf, char *f_name)
 {
@@ -235,7 +288,7 @@ void get_file_extension(char *buf, char *f_name)
 }
 
 /**
- * Given a full path this function returns the file path 
+ * Given a full path this function returns the file path
  * @param full_path the files full path
  * @return a heap pointer containing the file's name
  */
@@ -256,10 +309,10 @@ char *get_file_name(char *full_path)
 }
 
 /**
- * Given a full path this function will return all the files parent directorys 
- * DONT forget to free the returned pointer 
- * @param full_path the files full path 
- * @return a heap pointer containing the files's directory name 
+ * Given a full path this function will return all the files parent directorys
+ * DONT forget to free the returned pointer
+ * @param full_path the files full path
+ * @return a heap pointer containing the files's directory name
  */
 char *get_dir_name(char *full_path)
 {
@@ -269,8 +322,8 @@ char *get_dir_name(char *full_path)
 /* ============================ is_* FUNCTIONS ============================== */
 
 /**
- * Given a directory returns true if the current process 
- * can write to that directory 
+ * Given a directory returns true if the current process
+ * can write to that directory
  * @param path location to test if writable
  */
 bool is_folder_writable(char *path)
@@ -282,9 +335,9 @@ bool is_folder_writable(char *path)
 
 /**
  * Adds the file at to the thread pool of scans to perform
- * This function blocks if the thread pool is at maxiumum capacity 
- * @param file_location the file to be scaned 
- * @param file_name the name of the file that is going to be ccaned 
+ * This function blocks if the thread pool is at maxiumum capacity
+ * @param file_location the file to be scaned
+ * @param file_name the name of the file that is going to be ccaned
  */
 static void add_file_to_thread_pool(char *file_location, char *file_name, All_Results *all_results, Args *cmdline, vec_void_t *users)
 {
