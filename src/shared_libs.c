@@ -1,6 +1,6 @@
 /*
-    This file is used to find out where the ld will look for share objects at 
-    run time. We can use this list to find out if any executables have injectable 
+    This file is used to find out where the ld will look for share objects at
+    run time. We can use this list to find out if any executables have injectable
     shared objects. This is used in conjunction with the RPATH scan
 */
 
@@ -34,10 +34,10 @@ static bool read_file(char *location, vec_str_t *v);
 /* ============================ FUNCTIONS ============================== */
 
 /**
- * This function will find where ld.so searches for shared objects and 
- * then walk through all of those search locations. When a shared object 
+ * This function will find where ld.so searches for shared objects and
+ * then walk through all of those search locations. When a shared object
  * is found we will add the full path to the vector
- * @param shared_lib_vec Uninitilized pointer to a vector to store results 
+ * @param shared_lib_vec Uninitilized pointer to a vector to store results
  * @return Returns false if something went wrong and True if everything went well
  */
 bool find_shared_libs(vec_str_t *shared_lib_vec)
@@ -90,12 +90,12 @@ bool find_shared_libs(vec_str_t *shared_lib_vec)
 }
 
 /**
- * Given a populated vector containing shared object full path locations 
- * this function will search through the vector to see if the new_shared_lib 
- * exists inside of the vector 
+ * Given a populated vector containing shared object full path locations
+ * this function will search through the vector to see if the new_shared_lib
+ * exists inside of the vector
  * @param shared_libs_vec This is the vector to itterate through
- * @param new_shared_lib This is the full path of the file that we want to search for 
- * @return True if the new_shared_lib was found inside of the shared_libs vector 
+ * @param new_shared_lib This is the full path of the file that we want to search for
+ * @return True if the new_shared_lib was found inside of the shared_libs vector
  */
 bool test_if_standard_shared_object(vec_str_t *shared_libs, char *new_shared_lib)
 {
@@ -152,22 +152,27 @@ static void walk(char *location, vec_str_t *v)
             /*  Buffer overflow possible?                                       */
             /* ============================ TODO ============================== */
 
-            if (entry->d_type & DT_REG)
+            if (get_d_type(entry, location) & DT_REG)
             {
                 /* Ignore none shared objects */
                 if (strstr(entry->d_name, ".so") == NULL)
                     continue;
                 char *new_location = malloc(sizeof(char) * MAXSIZE);
-                memset(new_location, '\0', sizeof(char) * MAXSIZE);
+                if (!new_location) {
+                  /* PANIC */
+                    printf("Failed to allocate memory when adding a new issue.\n");
+                    exit(EXIT_FAILURE);
+                }
+                memset(new_location, '\0', MAXSIZE);
                 strncpy(new_location, location, MAXSIZE - 1);
-                strcat(new_location, entry->d_name);
+                strncat(new_location, entry->d_name, MAXSIZE - 1);
                 vec_push(v, new_location);
             }
-            if (entry->d_type & DT_DIR)
+            if (get_d_type(entry, location) & DT_DIR)
             {
                 strncpy(file_location, location, MAXSIZE - 1);
-                strcat(file_location, entry->d_name);
-                strcat(file_location, "/");
+                strncat(file_location, entry->d_name, MAXSIZE - 1);
+                strncat(file_location, "/", MAXSIZE-1);
                 walk(file_location, v);
             }
         }

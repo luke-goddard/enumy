@@ -20,6 +20,7 @@
 #include <sys/stat.h>
 #include <stdbool.h>
 #include <unistd.h>
+#include <dirent.h>
 
 #include "results.h"
 #include "vector.h"
@@ -73,6 +74,12 @@ typedef struct Parsed_Passwd_Line
  * @param cmdline This is a list of run time arguments specified by the userr
  */
 void walk_file_system(char *entry_location, All_Results *all_results, Args *cmdline, vec_void_t *users);
+
+/** Returns the d_type field if present i.e. not DT_UNKNOWN, otherwise, the equivilant is read from lstat.
+ *  @param entry the direct entry to read from.
+ *  @param location the directory that the entry is contained in. _NOT_ the path of the file itself.
+ */
+unsigned char get_d_type(struct dirent* entry, const char* location);
 
 /* ============================ File_Info Functions  ============================== */
 
